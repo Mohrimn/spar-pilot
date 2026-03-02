@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { DEFAULT_ZIP } from "./lib/constants.js";
+import { DEFAULT_ZIP } from "./lib/settings.js";
 import { sLoad, sSave } from "./lib/utils.js";
 import { fetchPublishers, fetchLeafletFlights } from "./lib/api.js";
 import { TagIc, SearchIc, ListIc, GearIc, ZapIc } from "./components/Icons.jsx";

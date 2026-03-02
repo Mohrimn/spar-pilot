@@ -10,7 +10,7 @@ A mobile-first grocery deal finder for German supermarkets. Browse current offer
 - **Shopping list** — Add offers from any tab, track quantities, check off items, grouped by store and category
 - **Settings** — ZIP code, loyalty card filtering, industry scope (grocery-only or all)
 
-Data comes from the MarktGuru API.
+Data comes from the MarktGuru API. Google is your friend for finding needed API keys
 
 ## Getting started
 
@@ -20,6 +20,18 @@ npm run dev
 ```
 
 Open `http://localhost:5173`. The app defaults to ZIP code `35516` — change it in Settings.
+
+### Environment variables
+
+Create a local `.env` file (or copy `.env.example`) with:
+
+```bash
+VITE_DEFAULT_ZIP=35516
+VITE_API_CLIENT_KEY=...
+VITE_API_KEY=...
+```
+
+Because this is a client-side Vite app, these values are bundled into frontend code at build time.
 
 ## Build
 
