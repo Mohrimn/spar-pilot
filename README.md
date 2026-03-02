@@ -10,7 +10,7 @@ A mobile-first grocery deal finder for German supermarkets. Browse current offer
 - **Shopping list** — Add offers from any tab, track quantities, check off items, grouped by store and category
 - **Settings** — ZIP code, loyalty card filtering, industry scope (grocery-only or all)
 
-Data comes from the MarktGuru API. Google is your friend for finding needed API keys
+Data comes from the MarktGuru API. Google or git history is your friend for finding needed API keys
 
 ## Getting started
 
