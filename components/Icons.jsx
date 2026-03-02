@@ -1,0 +1,17 @@
+const Ic=({d,s=20,w=2.5,f="none"})=><svg width={s} height={s} viewBox="0 0 24 24" fill={f} stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>;
+export const SearchIc=()=><Ic d="M11 3a8 8 0 100 16 8 8 0 000-16zM21 21l-4.35-4.35"/>;
+export const TagIc=()=><Ic d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82zM7 7h.01"/>;
+export const ListIc=()=><Ic d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>;
+export const GearIc=()=><Ic d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z" w={2}/>;
+export const PlusIc=()=><Ic d="M12 5v14M5 12h14" s={15} w={3}/>;
+export const TrashIc=()=><Ic d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" s={15} w={2}/>;
+export const CheckIc=()=><Ic d="M20 6L9 17l-5-5" s={15} w={3}/>;
+export const ChevD=({open})=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{transition:"transform 0.2s",transform:open?"rotate(180deg)":"none"}}><path d="M6 9l6 6 6-6"/></svg>;
+export const StarIc=()=><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14l-5-4.87 6.91-1.01z"/></svg>;
+export const ZapIc=()=><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>;
+export const RefIc=()=><Ic d="M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" s={14} w={2}/>;
+export const BookIc=()=><Ic d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 004 17V5a2 2 0 012-2h14v14H6.5" s={14} w={2}/>;
+export const ArrowLIc=()=><Ic d="M19 12H5M12 19l-7-7 7-7" s={22} w={2.5}/>;
+export const ArrowRIc=()=><Ic d="M5 12h14M12 5l7 7-7 7" s={22} w={2.5}/>;
+export const XIc=()=><Ic d="M18 6L6 18M6 6l12 12" s={20} w={2.5}/>;
+export const StoreIc=()=><Ic d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" s={14} w={2}/>;
