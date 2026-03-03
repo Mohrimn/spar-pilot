@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DEFAULT_ZIP } from "./lib/settings.js";
+import { DEFAULT_LOYALTY } from "./lib/constants.js";
 import { sLoad, sSave } from "./lib/utils.js";
-import { fetchPublishers, fetchLeafletFlights } from "./lib/api.js";
+import { fetchPublishers, fetchLeafletFlights, fetchStoreLocations, fetchBestLeaflet, geocodeZip } from "./lib/api.js";
 import { TagIc, SearchIc, ListIc, GearIc, ZapIc } from "./components/Icons.jsx";
 import { ProspektViewer } from "./components/ProspektViewer.jsx";
 import { AngeboteTab } from "./components/AngeboteTab.jsx";
@@ -12,14 +13,23 @@ import { SettingsTab } from "./components/SettingsTab.jsx";
 export default function SparPilot() {
   const [tab, setTab] = useState("angebote");
   const [list, setList] = useState([]);
-  const [cfg, setCfg] = useState({ zip: DEFAULT_ZIP, loyalty: true, mode: "per_unit", expand: false, showAllIndustries: false });
+  const [cfg, setCfg] = useState({ zip: DEFAULT_ZIP, loyalty: true, mode: "per_unit", expand: false, showAllIndustries: false, myLoyalty: DEFAULT_LOYALTY });
   const [added, setAdded] = useState(new Set());
   const [pubGroups, setPubGroups] = useState([]);
   const [leafletFlights, setLeafletFlights] = useState({});
+  const [storeLocations, setStoreLocations] = useState({});
   const [bLoad, setBLoad] = useState(false);
   const [bErr, setBErr] = useState(null);
   const [rdy, setRdy] = useState(false);
   const [prospektOpen, setProspektOpen] = useState(null);
+  const geoCacheRef = useRef({ zip: null, coords: null });
+
+  const getCoords = async (zip) => {
+    if (geoCacheRef.current.zip === zip) return geoCacheRef.current.coords;
+    const coords = await geocodeZip(zip);
+    geoCacheRef.current = { zip, coords };
+    return coords;
+  };
 
   useEffect(() => { (async () => { const l = await sLoad("sp5-list", []); const c = await sLoad("sp5-cfg", null); if (l.length) setList(l); if (c) setCfg(s => ({ ...s, ...c })); setRdy(true); })(); }, []);
   useEffect(() => { if (rdy) sSave("sp5-list", list); }, [list, rdy]);
@@ -38,12 +48,27 @@ export default function SparPilot() {
       ]);
       setPubGroups(groups);
       setLeafletFlights(flights);
+      // Fetch store locations in background (non-blocking)
+      if (Object.keys(flights).length > 0) {
+        getCoords(zip).then(coords => {
+          fetchStoreLocations(flights, zip, coords)
+            .then(locs => setStoreLocations(locs))
+            .catch(e => console.error("[SP] store locations err:", e));
+        });
+      }
     } catch (e) { setBErr(e.message); }
     finally { setBLoad(false); }
   };
 
-  const openProspekt = (slug, name, flight) => {
-    setProspektOpen({ slug, name, leafletId: flight.mainLeafletId, pageCount: flight.pageCount, offerCount: flight.offerCount, flight });
+  const openProspekt = async (slug, name, flight) => {
+    let leafletId = flight.mainLeafletId;
+    let pageCount = flight.pageCount;
+    try {
+      const coords = await getCoords(cfg.zip);
+      const best = await fetchBestLeaflet(flight.id, cfg.zip, coords);
+      if (best?.id) { leafletId = best.id; pageCount = best.pageCount || pageCount; }
+    } catch (e) { console.error("[SP] best leaflet err:", e); }
+    setProspektOpen({ slug, name, leafletId, pageCount, offerCount: flight.offerCount, flight });
   };
   const closeProspekt = () => setProspektOpen(null);
 
@@ -57,7 +82,7 @@ export default function SparPilot() {
 
   return (
     <div style={{ fontFamily: "'DM Sans','Helvetica Neue',sans-serif", background: "#f5f4f0", minHeight: "100vh", maxWidth: "480px", margin: "0 auto", display: "flex", flexDirection: "column", color: "#1a1a1a", position: "relative" }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet" />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}input::placeholder{color:#bbb}::-webkit-scrollbar{width:0}`}</style>
 
       {/* HEADER */}
@@ -65,14 +90,14 @@ export default function SparPilot() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
             <span style={{ fontSize: "18px", fontWeight: 800, letterSpacing: "-0.5px" }}>Spar·Pilot</span>
-            <span style={{ fontSize: "10px", color: "#666", fontFamily: "'DM Mono',monospace" }}>{cfg.zip}</span>
+            <span style={{ fontSize: "10px", color: "#666", fontFamily: "'JetBrains Mono',monospace" }}>{cfg.zip}</span>
           </div>
-          {list.length > 0 && <div style={{ fontSize: "10px", color: "#10b981", fontFamily: "'DM Mono',monospace", display: "flex", alignItems: "center", gap: "3px", background: "#10b98115", padding: "3px 8px", borderRadius: "6px" }}><ZapIc />{list.length} · {tot.toFixed(2)}€</div>}
+          {list.length > 0 && <div style={{ fontSize: "10px", color: "#10b981", fontFamily: "'JetBrains Mono',monospace", display: "flex", alignItems: "center", gap: "3px", background: "#10b98115", padding: "3px 8px", borderRadius: "6px" }}><ZapIc />{list.length} · {tot.toFixed(2)}€</div>}
         </div>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", paddingBottom: "66px" }}>
-        {tab === "angebote" && <AngeboteTab pubGroups={pubGroups} leafletFlights={leafletFlights} cfg={cfg} added={added} addItem={addItem} onLoadBrowse={doLoadBrowse} bLoad={bLoad} bErr={bErr} onOpenProspekt={openProspekt} />}
+        {tab === "angebote" && <AngeboteTab pubGroups={pubGroups} leafletFlights={leafletFlights} storeLocations={storeLocations} cfg={cfg} added={added} addItem={addItem} onLoadBrowse={doLoadBrowse} bLoad={bLoad} bErr={bErr} onOpenProspekt={openProspekt} />}
         {tab === "search" && <SearchTab cfg={cfg} added={added} addItem={addItem} />}
         {tab === "list" && <ListTab list={list} onRemove={rmItem} onToggleCheck={togCk} onUpdateQty={updQ} onClearChecked={clrCk} />}
         {tab === "settings" && <SettingsTab cfg={cfg} onUpdateCfg={patch => setCfg(s => ({ ...s, ...patch }))} onLoadBrowse={doLoadBrowse} onClearList={() => { if (confirm("Einkaufsliste leeren?")) setList([]); }} />}

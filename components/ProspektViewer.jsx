@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { getRetColor } from "../lib/constants.js";
 import { fmtDate, disc, uPrice } from "../lib/utils.js";
 import { leafletPageUrl, fetchLeafletDetail, fetchLeafletPageOffers } from "../lib/api.js";
@@ -15,6 +15,52 @@ export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
   const [manualAddPrice, setManualAddPrice] = useState("");
   const [manualAddOpen, setManualAddOpen] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  const imageAreaRef = useRef(null);
+  const touchRef = useRef(null);
+
+  const goPageStable = useCallback((idx) => {
+    if (!prospektOpen || idx < 0 || idx >= prospektOpen.pageCount) return;
+    setPage(idx);
+    setSelectedOffer(null);
+    setImgLoaded(false);
+  }, [prospektOpen]);
+
+  // Keyboard navigation (arrow keys)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "ArrowLeft") { e.preventDefault(); goPageStable(pageRef.current - 1); }
+      if (e.key === "ArrowRight") { e.preventDefault(); goPageStable(pageRef.current + 1); }
+      if (e.key === "Escape") { e.preventDefault(); onClose(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goPageStable, onClose]);
+
+  // Touch swipe navigation
+  useEffect(() => {
+    const el = imageAreaRef.current;
+    if (!el) return;
+    const onTouchStart = (e) => {
+      if (e.touches.length !== 1) return;
+      touchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+    };
+    const onTouchEnd = (e) => {
+      if (!touchRef.current) return;
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - touchRef.current.x;
+      const dy = touch.clientY - touchRef.current.y;
+      const dt = Date.now() - touchRef.current.t;
+      touchRef.current = null;
+      if (dt > 500 || Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return;
+      if (dx < 0) goPageStable(pageRef.current + 1);
+      else goPageStable(pageRef.current - 1);
+    };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => { el.removeEventListener("touchstart", onTouchStart); el.removeEventListener("touchend", onTouchEnd); };
+  }, [goPageStable]);
 
   // Called when opening — loads detail + first page
   const initLoad = async (info) => {
@@ -45,20 +91,19 @@ export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
   // But we still need initLoad on mount:
   useState(() => { initLoad(prospektOpen); });
 
-  const goPage = async (idx) => {
-    if(!prospektOpen||idx<0||idx>=prospektOpen.pageCount)return;
-    setPage(idx);
-    setSelectedOffer(null);
-    setImgLoaded(false);
-    if(prospektOpen.offerCount>0&&!pageOffers[idx]){
-      setPageLoading(true);
-      try{
-        const offers=await fetchLeafletPageOffers(prospektOpen.leafletId,idx);
-        setPageOffers(p=>({...p,[idx]:offers}));
-      }catch(e){console.error("[SP] page offers err:",e);}
-      finally{setPageLoading(false);}
-    }
-  };
+  // Load offers when page changes
+  useEffect(() => {
+    if (!prospektOpen || prospektOpen.offerCount <= 0 || pageOffers[page]) return;
+    let cancelled = false;
+    setPageLoading(true);
+    fetchLeafletPageOffers(prospektOpen.leafletId, page)
+      .then(offers => { if (!cancelled) setPageOffers(p => ({ ...p, [page]: offers })); })
+      .catch(e => console.error("[SP] page offers err:", e))
+      .finally(() => { if (!cancelled) setPageLoading(false); });
+    return () => { cancelled = true; };
+  }, [page, prospektOpen]);
+
+  const goPage = (idx) => goPageStable(idx);
 
   const addManualItem = () => {
     const name=manualAddText.trim();
@@ -87,7 +132,7 @@ export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
         <button onClick={onClose} style={{background:"none",border:"none",color:"#fff",cursor:"pointer",padding:"2px",display:"flex"}}><ArrowLIc/></button>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:"14px",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{prospektOpen.name}</div>
-          <div style={{fontSize:"10px",color:"#888",fontFamily:"'DM Mono',monospace"}}>
+          <div style={{fontSize:"10px",color:"#888",fontFamily:"'JetBrains Mono',monospace"}}>
             Seite {page+1}/{prospektOpen.pageCount}
             {prospektOpen.flight.validFrom&&` · ${fmtDate(prospektOpen.flight.validFrom)}–${fmtDate(prospektOpen.flight.validTo)}`}
           </div>
@@ -96,7 +141,7 @@ export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
       </div>
 
       {/* Page image with hotspots */}
-      <div style={{flex:1,overflow:"auto",position:"relative",WebkitOverflowScrolling:"touch"}}>
+      <div ref={imageAreaRef} style={{flex:1,overflow:"auto",position:"relative",WebkitOverflowScrolling:"touch"}}>
         <div style={{position:"relative",width:"100%",minHeight:"300px"}}>
           {!imgLoaded&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{width:"26px",height:"26px",border:"3px solid #eee",borderTopColor:"#1a1a1a",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/></div>}
           <img
@@ -136,7 +181,7 @@ export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#fff",borderTop:"1px solid #eee",flexShrink:0}}>
         <button onClick={()=>goPage(page-1)} disabled={page<=0} style={{background:"none",border:"1px solid #ddd",borderRadius:"8px",padding:"6px 10px",cursor:page>0?"pointer":"default",opacity:page>0?1:0.3,display:"flex",alignItems:"center",fontFamily:"inherit"}}><ArrowLIc/></button>
         <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
-          <span style={{fontSize:"13px",fontWeight:700,fontFamily:"'DM Mono',monospace"}}>{page+1} / {prospektOpen.pageCount}</span>
+          <span style={{fontSize:"13px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{page+1} / {prospektOpen.pageCount}</span>
         </div>
         <button onClick={()=>goPage(page+1)} disabled={page>=prospektOpen.pageCount-1} style={{background:"none",border:"1px solid #ddd",borderRadius:"8px",padding:"6px 10px",cursor:page<prospektOpen.pageCount-1?"pointer":"default",opacity:page<prospektOpen.pageCount-1?1:0.3,display:"flex",alignItems:"center",fontFamily:"inherit"}}><ArrowRIc/></button>
       </div>
@@ -152,7 +197,7 @@ export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
         </div>
         <input value={manualAddText} onChange={e=>setManualAddText(e.target.value)} placeholder="Produktname" style={{width:"100%",padding:"8px 10px",borderRadius:"8px",border:"2px solid #e5e5e0",fontSize:"14px",fontFamily:"inherit",marginBottom:"6px",outline:"none",boxSizing:"border-box"}} autoFocus/>
         <div style={{display:"flex",gap:"6px"}}>
-          <input value={manualAddPrice} onChange={e=>setManualAddPrice(e.target.value.replace(/[^0-9.,]/g,""))} placeholder="Preis (optional)" style={{flex:1,padding:"8px 10px",borderRadius:"8px",border:"2px solid #e5e5e0",fontSize:"14px",fontFamily:"'DM Mono',monospace",outline:"none"}}/>
+          <input value={manualAddPrice} onChange={e=>setManualAddPrice(e.target.value.replace(/[^0-9.,]/g,""))} placeholder="Preis (optional)" style={{flex:1,padding:"8px 10px",borderRadius:"8px",border:"2px solid #e5e5e0",fontSize:"14px",fontFamily:"'JetBrains Mono',monospace",outline:"none"}}/>
           <button onClick={addManualItem} disabled={!manualAddText.trim()} style={{padding:"8px 16px",borderRadius:"8px",background:manualAddText.trim()?"#1a1a1a":"#ddd",color:"#fff",border:"none",fontSize:"12px",fontWeight:700,cursor:manualAddText.trim()?"pointer":"default",fontFamily:"inherit"}}>Hinzufügen</button>
         </div>
       </div>}
@@ -172,11 +217,11 @@ export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
           {selectedOffer.description&&selectedOffer.description!=="Details im Prospekt"&&<div style={{fontSize:"11px",color:"#a08200",background:"#fffbeb",padding:"6px 8px",borderRadius:"6px",marginBottom:"10px",lineHeight:1.3}}>{selectedOffer.description}</div>}
           <div style={{display:"flex",alignItems:"baseline",gap:"6px",marginBottom:"4px"}}>
             {selectedOffer.oldPrice&&<span style={{fontSize:"14px",color:"#ccc",textDecoration:"line-through"}}>{selectedOffer.oldPrice.toFixed(2)}€</span>}
-            <span style={{fontSize:"24px",fontWeight:800,fontFamily:"'DM Mono',monospace"}}>{selectedOffer.price.toFixed(2)}</span>
+            <span style={{fontSize:"24px",fontWeight:800,fontFamily:"'JetBrains Mono',monospace"}}>{selectedOffer.price.toFixed(2)}</span>
             <span style={{fontSize:"14px",color:"#999"}}>€</span>
             {disc(selectedOffer)>0&&<span style={{fontSize:"11px",fontWeight:800,color:"#ef4444",background:"#fef2f2",padding:"2px 6px",borderRadius:"4px"}}>−{disc(selectedOffer)}%</span>}
           </div>
-          {uPrice(selectedOffer)&&<div style={{fontSize:"11px",color:"#059669",fontWeight:700,fontFamily:"'DM Mono',monospace",marginBottom:"10px"}}>{uPrice(selectedOffer).toFixed(2)}€/{selectedOffer.unitShort||"kg"}</div>}
+          {uPrice(selectedOffer)&&<div style={{fontSize:"11px",color:"#059669",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",marginBottom:"10px"}}>{uPrice(selectedOffer).toFixed(2)}€/{selectedOffer.unitShort||"kg"}</div>}
           {selectedOffer.volume!=null&&selectedOffer.unitShort&&<div style={{fontSize:"11px",color:"#999",marginBottom:"10px"}}>{selectedOffer.volume} {selectedOffer.unitShort}</div>}
           <button onClick={()=>{addItem(selectedOffer);setSelectedOffer(null);}} disabled={added.has(selectedOffer.id)} style={{width:"100%",padding:"12px",borderRadius:"10px",background:added.has(selectedOffer.id)?"#e8e8e3":"#1a1a1a",color:added.has(selectedOffer.id)?"#aaa":"#fff",border:"none",fontSize:"14px",fontWeight:700,cursor:added.has(selectedOffer.id)?"default":"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:"6px"}}>
             {added.has(selectedOffer.id)?<><CheckIc/> Bereits auf der Liste</>:<><PlusIc/> Auf die Liste</>}

@@ -6,7 +6,7 @@ import { SearchIc, ChevD, RefIc, BookIc, StoreIc } from "./Icons.jsx";
 import { chipRowStyle, Spinner, ErrBox } from "./Shared.jsx";
 import { Card } from "./Card.jsx";
 
-export function AngeboteTab({ pubGroups, leafletFlights, cfg, added, addItem, onLoadBrowse, bLoad, bErr, onOpenProspekt }) {
+export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cfg, added, addItem, onLoadBrowse, bLoad, bErr, onOpenProspekt }) {
   const [openRets, setOpenRets] = useState(new Set());
   const [openCatsByRet, setOpenCatsByRet] = useState({});
   const [retF, setRetF] = useState(null);
@@ -20,7 +20,7 @@ export function AngeboteTab({ pubGroups, leafletFlights, cfg, added, addItem, on
 
   const filtOffers = (arr) => {
     let r = [...arr];
-    if (!cfg.loyalty) r = r.filter(o => !o.requiresLoyalty || isMyLoyalty(o.retailerSlug, o.retailerName));
+    if (!cfg.loyalty) r = r.filter(o => !o.requiresLoyalty || isMyLoyalty(o.retailerSlug, o.retailerName, cfg.myLoyalty));
     return r;
   };
 
@@ -125,7 +125,7 @@ export function AngeboteTab({ pubGroups, leafletFlights, cfg, added, addItem, on
           {allCategories.map(c => { const on = catF === c; const cnt = categoryCounts.get(c) || 0; return <button key={c} onClick={() => setCatF(on ? null : c)} style={{ padding: "4px 9px", borderRadius: "14px", fontSize: "10px", fontWeight: 600, border: on ? "2px solid #1a1a1a" : "1.5px solid #ddd", background: on ? "#1a1a1a" : "#fff", color: on ? "#fff" : "#999", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>{c} <span style={{ opacity: 0.6 }}>{cnt}</span></button> })}
         </div>}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "4px" }}>
-          <span style={{ fontSize: "10px", color: "#bbb", fontFamily: "'DM Mono',monospace" }}>{totalOffers} Angebote · {visGroups.length + leafletOnlyRetailers.length} Läden{catF ? ` · ${catF}` : ""}{angeboteQNorm ? " · Filter aktiv" : ""}</span>
+          <span style={{ fontSize: "10px", color: "#bbb", fontFamily: "'JetBrains Mono',monospace" }}>{totalOffers} Angebote · {visGroups.length + leafletOnlyRetailers.length} Läden{catF ? ` · ${catF}` : ""}{angeboteQNorm ? " · Filter aktiv" : ""}</span>
           <button onClick={onLoadBrowse} disabled={bLoad} style={{ background: "none", border: "none", color: "#999", cursor: "pointer", display: "flex", alignItems: "center", gap: "3px", fontSize: "10px", fontFamily: "inherit" }}><RefIc /> Neu laden</button>
         </div>
       </div>
@@ -160,8 +160,11 @@ export function AngeboteTab({ pubGroups, leafletFlights, cfg, added, addItem, on
                 <div style={{ display: "flex", alignItems: "center", gap: "7px", minWidth: 0, flex: 1 }}>
                   <StoreIc />
                   <div style={{ textAlign: "left", minWidth: 0 }}>
-                    <span style={{ fontSize: "13px", fontWeight: 700, color: open ? (lt ? "#1a1a1a" : "#fff") : "#1a1a1a" }}>{g.name}</span>
-                    <div style={{ fontSize: "10px", color: open ? (lt ? "#555" : "rgba(255,255,255,0.6)") : "#bbb", fontFamily: "'DM Mono',monospace" }}>{offers.length} Angebote{loyaltyCount > 0 ? ` · ${loyaltyCount} Karte` : ""}</div>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: "5px" }}>
+                      <span style={{ fontSize: "13px", fontWeight: 700, color: open ? (lt ? "#1a1a1a" : "#fff") : "#1a1a1a" }}>{g.name}</span>
+                      {storeLocations[g.slug] && <span style={{ fontSize: "10px", color: open ? (lt ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)") : "#bbb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{storeLocations[g.slug].address}, {storeLocations[g.slug].zipCode}</span>}
+                    </div>
+                    <div style={{ fontSize: "10px", color: open ? (lt ? "#555" : "rgba(255,255,255,0.6)") : "#bbb", fontFamily: "'JetBrains Mono',monospace" }}>{offers.length} Angebote{loyaltyCount > 0 ? ` · ${loyaltyCount} Karte` : ""}</div>
                     {!open && categories.length > 0 && <div style={{ fontSize: "10px", color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{categories.slice(0, 3).map(c => `${c.name} ${c.count}`).join(" · ")}{categories.length > 3 ? ` · +${categories.length - 3}` : ""}</div>}
                   </div>
                 </div>
@@ -177,14 +180,14 @@ export function AngeboteTab({ pubGroups, leafletFlights, cfg, added, addItem, on
             </div>
             {open && <div style={{ background: "#edece8", borderRadius: "0 0 10px 10px", padding: "6px 6px 3px", display: "flex", flexDirection: "column", gap: "5px" }}>
               {(catF || categories.length === 1) ? <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "2px" }}>
-                {srt(offers).map(o => <Card key={o.id} o={o} sm highlightQuery={angeboteQ} added={added} addItem={addItem} />)}
+                {srt(offers).map(o => <Card key={o.id} o={o} sm highlightQuery={angeboteQ} added={added} addItem={addItem} myLoyalty={cfg.myLoyalty} />)}
               </div> : categories.map(cat => {
                 const catOpen = !!openCatsByRet[g.slug]?.[cat.name] || !!angeboteQNorm;
                 return <div key={`${g.slug}-${cat.name}`} style={{ background: "#f6f5f1", borderRadius: "8px", border: "1px solid #e8e6df", overflow: "hidden" }}>
                   <button onClick={() => togCat(g.slug, cat.name)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: catOpen ? "#eceae2" : "#f6f5f1", border: "none", cursor: "pointer", fontFamily: "inherit", gap: "8px" }}>
                     <div style={{ textAlign: "left", minWidth: 0 }}>
                       <div style={{ fontSize: "11px", fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.35px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cat.name}</div>
-                      <div style={{ fontSize: "10px", color: "#aaa", fontFamily: "'DM Mono',monospace" }}>{cat.count} Angebote</div>
+                      <div style={{ fontSize: "10px", color: "#aaa", fontFamily: "'JetBrains Mono',monospace" }}>{cat.count} Angebote</div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
                       {cat.bestDisc > 0 && <span style={{ fontSize: "9px", fontWeight: 800, color: "#ef4444", background: "#fef2f2", padding: "2px 6px", borderRadius: "4px" }}>bis −{cat.bestDisc}%</span>}
@@ -192,7 +195,7 @@ export function AngeboteTab({ pubGroups, leafletFlights, cfg, added, addItem, on
                     </div>
                   </button>
                   {catOpen && <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "6px" }}>
-                    {cat.offers.map(o => <Card key={o.id} o={o} sm highlightQuery={angeboteQ} added={added} addItem={addItem} />)}
+                    {cat.offers.map(o => <Card key={o.id} o={o} sm highlightQuery={angeboteQ} added={added} addItem={addItem} myLoyalty={cfg.myLoyalty} />)}
                   </div>}
                 </div>;
               })}
@@ -208,8 +211,11 @@ export function AngeboteTab({ pubGroups, leafletFlights, cfg, added, addItem, on
               <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", padding: "10px 12px", background: "#fff", border: "1px solid #eee", borderRight: "none", borderRadius: 0, gap: "7px" }}>
                 <StoreIc />
                 <div style={{ textAlign: "left", minWidth: 0 }}>
-                  <span style={{ fontSize: "13px", fontWeight: 700, color: "#1a1a1a" }}>{r.name}</span>
-                  <div style={{ fontSize: "10px", color: "#bbb", fontFamily: "'DM Mono',monospace" }}>Nur Prospekt · {r.flight.pageCount} Seiten</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "5px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#1a1a1a" }}>{r.name}</span>
+                    {storeLocations[r.slug] && <span style={{ fontSize: "10px", color: "#bbb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{storeLocations[r.slug].address}, {storeLocations[r.slug].zipCode}</span>}
+                  </div>
+                  <div style={{ fontSize: "10px", color: "#bbb", fontFamily: "'JetBrains Mono',monospace" }}>Nur Prospekt · {r.flight.pageCount} Seiten</div>
                 </div>
               </div>
               <button onClick={() => onOpenProspekt(r.slug, r.name, r.flight)} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px", padding: "6px 12px", background: "#fff", border: "1px solid #eee", borderLeft: "1px solid #eee", borderRadius: 0, cursor: "pointer", fontFamily: "inherit" }}>
