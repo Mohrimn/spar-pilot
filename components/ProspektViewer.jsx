@@ -15,10 +15,14 @@ export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
   const [manualAddPrice, setManualAddPrice] = useState("");
   const [manualAddOpen, setManualAddOpen] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [jumpMode, setJumpMode] = useState(false);
+  const [jumpVal, setJumpVal] = useState("");
+  const [thumbsOpen, setThumbsOpen] = useState(false);
   const pageRef = useRef(page);
   pageRef.current = page;
   const imageAreaRef = useRef(null);
   const touchRef = useRef(null);
+  const activeThumbRef = useRef(null);
 
   const goPageStable = useCallback((idx) => {
     if (!prospektOpen || idx < 0 || idx >= prospektOpen.pageCount) return;
@@ -61,6 +65,11 @@ export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
     el.addEventListener("touchend", onTouchEnd, { passive: true });
     return () => { el.removeEventListener("touchstart", onTouchStart); el.removeEventListener("touchend", onTouchEnd); };
   }, [goPageStable]);
+
+  // Auto-scroll thumbnail strip to active page
+  useEffect(() => {
+    if (thumbsOpen && activeThumbRef.current) activeThumbRef.current.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [page, thumbsOpen]);
 
   // Called when opening — loads detail + first page
   const initLoad = async (info) => {
@@ -137,7 +146,8 @@ export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
             {prospektOpen.flight.validFrom&&` · ${fmtDate(prospektOpen.flight.validFrom)}–${fmtDate(prospektOpen.flight.validTo)}`}
           </div>
         </div>
-        {prospektOpen.offerCount>0&&<span style={{fontSize:"9px",padding:"3px 7px",borderRadius:"5px",background:"#10b98130",color:"#10b981",fontWeight:700}}>{prospektOpen.offerCount} Artikel</span>}
+        {prospektOpen.pageCount>1&&<button type="button" onClick={()=>setThumbsOpen(v=>!v)} style={{background:thumbsOpen?"#fff":"none",border:"none",color:thumbsOpen?"#1a1a1a":"#888",cursor:"pointer",padding:"4px 8px",borderRadius:"5px",fontSize:"10px",fontWeight:700,fontFamily:"inherit",flexShrink:0}}>Vorschau</button>}
+        {prospektOpen.offerCount>0&&<span style={{fontSize:"9px",padding:"3px 7px",borderRadius:"5px",background:"#10b98130",color:"#10b981",fontWeight:700,flexShrink:0}}>{prospektOpen.offerCount} Artikel</span>}
       </div>
 
       {/* Page image with hotspots */}
@@ -177,11 +187,24 @@ export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
         </div>
       </div>
 
+      {/* Thumbnail strip */}
+      {thumbsOpen&&prospektOpen.pageCount>1&&<div style={{display:"flex",gap:"4px",overflowX:"auto",overflowY:"hidden",padding:"6px 10px",background:"#1a1a1a",flexShrink:0,WebkitOverflowScrolling:"touch",scrollbarWidth:"none"}}>
+        {Array.from({length:prospektOpen.pageCount},(_,i)=><button key={i} ref={i===page?activeThumbRef:null} type="button" onClick={()=>goPage(i)} style={{flexShrink:0,width:"52px",height:"72px",padding:0,border:i===page?"2px solid #10b981":"2px solid transparent",borderRadius:"4px",overflow:"hidden",cursor:"pointer",background:"#333",position:"relative"}}>
+          <img src={leafletPageUrl(prospektOpen.leafletId,i)} alt={`S.${i+1}`} loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+          <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(0,0,0,0.55)",fontSize:"8px",fontWeight:700,color:"#fff",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",padding:"1px 0"}}>{i+1}</div>
+        </button>)}
+      </div>}
+
       {/* Page navigation */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#fff",borderTop:"1px solid #eee",flexShrink:0}}>
         <button onClick={()=>goPage(page-1)} disabled={page<=0} style={{background:"none",border:"1px solid #ddd",borderRadius:"8px",padding:"6px 10px",cursor:page>0?"pointer":"default",opacity:page>0?1:0.3,display:"flex",alignItems:"center",fontFamily:"inherit"}}><ArrowLIc/></button>
         <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
-          <span style={{fontSize:"13px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{page+1} / {prospektOpen.pageCount}</span>
+          {jumpMode?<form onSubmit={e=>{e.preventDefault();const n=parseInt(jumpVal,10);if(!isNaN(n)&&n>=1&&n<=prospektOpen.pageCount)goPage(n-1);setJumpMode(false);setJumpVal("");}} style={{display:"flex",alignItems:"center",gap:"4px"}}>
+            <input autoFocus type="number" min={1} max={prospektOpen.pageCount} value={jumpVal} onChange={e=>setJumpVal(e.target.value)} onBlur={()=>{setJumpMode(false);setJumpVal("");}} style={{width:"52px",padding:"4px 6px",borderRadius:"6px",border:"2px solid #1a1a1a",fontSize:"13px",fontFamily:"'JetBrains Mono',monospace",fontWeight:700,textAlign:"center",outline:"none"}}/>
+            <span style={{fontSize:"13px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:"#aaa"}}>/ {prospektOpen.pageCount}</span>
+          </form>:<button type="button" onClick={()=>{setJumpMode(true);setJumpVal(String(page+1));}} style={{fontSize:"13px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",background:"none",border:"1px solid #ddd",borderRadius:"6px",padding:"4px 10px",cursor:"pointer"}}>
+            {page+1} / {prospektOpen.pageCount}
+          </button>}
         </div>
         <button onClick={()=>goPage(page+1)} disabled={page>=prospektOpen.pageCount-1} style={{background:"none",border:"1px solid #ddd",borderRadius:"8px",padding:"6px 10px",cursor:page<prospektOpen.pageCount-1?"pointer":"default",opacity:page<prospektOpen.pageCount-1?1:0.3,display:"flex",alignItems:"center",fontFamily:"inherit"}}><ArrowRIc/></button>
       </div>
