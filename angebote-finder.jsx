@@ -22,7 +22,11 @@ export default function SparPilot() {
   const [bErr, setBErr] = useState(null);
   const [rdy, setRdy] = useState(false);
   const [prospektOpen, setProspektOpen] = useState(null);
+  const [searchHistory, setSearchHistory] = useState([]);
+  const [searchPreFill, setSearchPreFill] = useState(null);
   const geoCacheRef = useRef({ zip: null, coords: null });
+  const mainScrollRef = useRef(null);
+  const savedScrollRef = useRef(0);
 
   const getCoords = async (zip) => {
     if (geoCacheRef.current.zip === zip) return geoCacheRef.current.coords;
@@ -31,9 +35,10 @@ export default function SparPilot() {
     return coords;
   };
 
-  useEffect(() => { (async () => { const l = await sLoad("sp5-list", []); const c = await sLoad("sp5-cfg", null); if (l.length) setList(l); if (c) setCfg(s => ({ ...s, ...c })); setRdy(true); })(); }, []);
+  useEffect(() => { (async () => { const l = await sLoad("sp5-list", []); const c = await sLoad("sp5-cfg", null); const h = await sLoad("sp5-searchHistory", []); if (l.length) setList(l); if (c) setCfg(s => ({ ...s, ...c })); if (h.length) setSearchHistory(h); setRdy(true); })(); }, []);
   useEffect(() => { if (rdy) sSave("sp5-list", list); }, [list, rdy]);
   useEffect(() => { if (rdy) sSave("sp5-cfg", cfg); }, [cfg, rdy]);
+  useEffect(() => { if (rdy) sSave("sp5-searchHistory", searchHistory); }, [searchHistory, rdy]);
   useEffect(() => { setAdded(new Set(list.map(i => i.oid))); }, [list]);
   useEffect(() => { if (rdy) doLoadBrowse(); }, [rdy]);
 
@@ -60,7 +65,17 @@ export default function SparPilot() {
     finally { setBLoad(false); }
   };
 
+  const addToHistory = (term) => {
+    if (term === "__clear__") { setSearchHistory([]); return; }
+    setSearchHistory(prev => {
+      const trimmed = term.trim();
+      return [trimmed, ...prev.filter(t => t.toLowerCase() !== trimmed.toLowerCase())].slice(0, 8);
+    });
+  };
+  const goSearchWith = (term) => { setSearchPreFill(term); setTab("search"); };
+
   const openProspekt = async (slug, name, flight) => {
+    savedScrollRef.current = mainScrollRef.current?.scrollTop ?? 0;
     let leafletId = flight.mainLeafletId;
     let pageCount = flight.pageCount;
     try {
@@ -70,7 +85,10 @@ export default function SparPilot() {
     } catch (e) { console.error("[SP] best leaflet err:", e); }
     setProspektOpen({ slug, name, leafletId, pageCount, offerCount: flight.offerCount, flight });
   };
-  const closeProspekt = () => setProspektOpen(null);
+  const closeProspekt = () => {
+    setProspektOpen(null);
+    requestAnimationFrame(() => { if (mainScrollRef.current) mainScrollRef.current.scrollTop = savedScrollRef.current; });
+  };
 
   const addItem = o => { if (added.has(o.id)) return; setList(p => [...p, { id: Date.now() + "_" + o.id, oid: o.id, offer: o, qty: 1, ck: false }]); };
   const rmItem = id => setList(p => p.filter(i => i.id !== id));
@@ -96,9 +114,9 @@ export default function SparPilot() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", paddingBottom: "66px" }}>
-        {tab === "angebote" && <AngeboteTab pubGroups={pubGroups} leafletFlights={leafletFlights} storeLocations={storeLocations} cfg={cfg} added={added} addItem={addItem} onLoadBrowse={doLoadBrowse} bLoad={bLoad} bErr={bErr} onOpenProspekt={openProspekt} />}
-        {tab === "search" && <SearchTab cfg={cfg} added={added} addItem={addItem} />}
+      <div ref={mainScrollRef} style={{ flex: 1, overflowY: "auto", paddingBottom: "66px" }}>
+        {tab === "angebote" && <AngeboteTab pubGroups={pubGroups} leafletFlights={leafletFlights} storeLocations={storeLocations} cfg={cfg} added={added} addItem={addItem} onLoadBrowse={doLoadBrowse} bLoad={bLoad} bErr={bErr} onOpenProspekt={openProspekt} onGoSearch={goSearchWith} />}
+        {tab === "search" && <SearchTab cfg={cfg} added={added} addItem={addItem} searchHistory={searchHistory} onSearchHistoryUpdate={addToHistory} initialQ={searchPreFill} onConsumeInitialQ={() => setSearchPreFill(null)} />}
         {tab === "list" && <ListTab list={list} onRemove={rmItem} onToggleCheck={togCk} onUpdateQty={updQ} onClearChecked={clrCk} />}
         {tab === "settings" && <SettingsTab cfg={cfg} onUpdateCfg={patch => setCfg(s => ({ ...s, ...patch }))} onLoadBrowse={doLoadBrowse} onClearList={() => { if (confirm("Einkaufsliste leeren?")) setList([]); }} />}
       </div>

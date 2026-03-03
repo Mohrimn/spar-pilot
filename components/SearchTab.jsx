@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getRetColor, isMyLoyalty, isLightColor } from "../lib/constants.js";
 import { disc, uPrice, isStarted } from "../lib/utils.js";
 import { catLabel, EXPANSIONS } from "../lib/offers.js";
@@ -7,7 +7,7 @@ import { SearchIc, ZapIc } from "./Icons.jsx";
 import { Spinner, ErrBox } from "./Shared.jsx";
 import { Card } from "./Card.jsx";
 
-export function SearchTab({ cfg, added, addItem }) {
+export function SearchTab({ cfg, added, addItem, searchHistory = [], onSearchHistoryUpdate, initialQ, onConsumeInitialQ }) {
   const [q, setQ] = useState("");
   const [sRes, setSRes] = useState([]);
   const [sDone, setSDone] = useState(false);
@@ -26,9 +26,17 @@ export function SearchTab({ cfg, added, addItem }) {
       const expanded = cfg.expand && EXPANSIONS[term.trim().toLowerCase()] ? EXPANSIONS[term.trim().toLowerCase()] : term;
       const offers = await apiSearch(expanded, cfg.zip);
       setSRes(offers); setSDone(true);
+      onSearchHistoryUpdate?.(term.trim());
     } catch (e) { setErr(e.message); setSRes([]); setSDone(true); }
     finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    if (!initialQ) return;
+    setQ(initialQ);
+    doSearch(null, initialQ);
+    onConsumeInitialQ?.();
+  }, [initialQ]);
 
   const srt = (arr) => [...arr].sort((a, b) => {
     if (sort === "unitPrice") return (uPrice(a) || a.price) - (uPrice(b) || b.price);
@@ -85,7 +93,8 @@ export function SearchTab({ cfg, added, addItem }) {
           </span>
         </div>}
         {!sDone && !loading && <div style={{ display: "flex", gap: "5px", marginTop: "8px", flexWrap: "wrap" }}>
-          {["Milch", "Butter", "Kaffee", "Bier", "Nudeln", "Chips", "Käse", "Wasser", "Eier", "Pizza"].map(t => <button type="button" key={t} onClick={() => { setQ(t); doSearch(null, t); }} style={{ padding: "5px 10px", borderRadius: "14px", fontSize: "11px", fontWeight: 500, border: "1.5px solid #e0e0db", background: "#fff", color: "#777", cursor: "pointer", fontFamily: "inherit" }}>{t}</button>)}
+          {(searchHistory.length > 0 ? searchHistory : ["Milch", "Butter", "Kaffee", "Bier", "Nudeln", "Chips", "Käse", "Wasser", "Eier", "Pizza"]).map(t => <button type="button" key={t} onClick={() => { setQ(t); doSearch(null, t); }} style={{ padding: "5px 10px", borderRadius: "14px", fontSize: "11px", fontWeight: 500, border: "1.5px solid #e0e0db", background: "#fff", color: "#777", cursor: "pointer", fontFamily: "inherit" }}>{t}</button>)}
+          {searchHistory.length > 0 && <button type="button" onClick={() => onSearchHistoryUpdate?.("__clear__")} style={{ padding: "5px 10px", borderRadius: "14px", fontSize: "11px", fontWeight: 500, border: "1.5px solid #e0e0db", background: "#fff", color: "#ccc", cursor: "pointer", fontFamily: "inherit" }}>Verlauf löschen</button>}
         </div>}
       </form>
       <div style={{ padding: "6px 18px 18px" }}>

@@ -6,7 +6,7 @@ import { SearchIc, ChevD, RefIc, BookIc, StoreIc } from "./Icons.jsx";
 import { chipRowStyle, Spinner, ErrBox } from "./Shared.jsx";
 import { Card } from "./Card.jsx";
 
-export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cfg, added, addItem, onLoadBrowse, bLoad, bErr, onOpenProspekt }) {
+export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cfg, added, addItem, onLoadBrowse, bLoad, bErr, onOpenProspekt, onGoSearch }) {
   const [openRets, setOpenRets] = useState(new Set());
   const [openCatsByRet, setOpenCatsByRet] = useState({});
   const [retF, setRetF] = useState(null);
@@ -126,7 +126,10 @@ export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cf
         </div>}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "4px" }}>
           <span style={{ fontSize: "10px", color: "#bbb", fontFamily: "'JetBrains Mono',monospace" }}>{totalOffers} Angebote · {visGroups.length + leafletOnlyRetailers.length} Läden{catF ? ` · ${catF}` : ""}{angeboteQNorm ? " · Filter aktiv" : ""}</span>
-          <button onClick={onLoadBrowse} disabled={bLoad} style={{ background: "none", border: "none", color: "#999", cursor: "pointer", display: "flex", alignItems: "center", gap: "3px", fontSize: "10px", fontFamily: "inherit" }}><RefIc /> Neu laden</button>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            {angeboteQNorm && onGoSearch && <button type="button" onClick={() => onGoSearch(angeboteQ.trim())} style={{ padding: "4px 10px", borderRadius: "14px", fontSize: "10px", fontWeight: 600, border: "1.5px solid #e0e0db", background: "#fff", color: "#666", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}><SearchIc /> Alle Händler</button>}
+            <button onClick={onLoadBrowse} disabled={bLoad} style={{ background: "none", border: "none", color: "#999", cursor: "pointer", display: "flex", alignItems: "center", gap: "3px", fontSize: "10px", fontFamily: "inherit" }}><RefIc /> Neu laden</button>
+          </div>
         </div>
       </div>
 
