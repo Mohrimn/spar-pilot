@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { getRetColor, isMyLoyalty, isLightColor, RETAILER_META } from "../lib/constants.js";
-import { normalizeText, disc, uPrice } from "../lib/utils.js";
+import { normalizeText, disc, uPrice, pickCurrentFlight } from "../lib/utils.js";
 import { catLabel, groupOffersByCategory, scoreOfferMatch } from "../lib/offers.js";
 import { SearchIc, ChevD, RefIc, BookIc, StoreIc } from "./Icons.jsx";
 import { chipRowStyle, Spinner, ErrBox } from "./Shared.jsx";
@@ -15,7 +15,11 @@ export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cf
   const prevAngeboteQRef = useRef("");
 
   const srt = (arr) => [...arr].sort((a, b) => {
-    return (uPrice(a) || a.price) - (uPrice(b) || b.price);
+    const ua = uPrice(a), ub = uPrice(b);
+    if (ua && ub) return ua - ub;
+    if (ua && !ub) return -1;
+    if (!ua && ub) return 1;
+    return a.price - b.price;
   });
 
   const filtOffers = (arr) => {
@@ -55,9 +59,9 @@ export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cf
     return Object.entries(leafletFlights)
       .filter(([slug]) => !pubSlugs.has(slug))
       .map(([slug, flights]) => {
-        const flight = flights[0];
-        const name = RETAILER_META[slug]?.name || flight.advertiserName || slug;
-        return { slug, name, flight };
+        const { current, all } = pickCurrentFlight(flights);
+        const name = RETAILER_META[slug]?.name || current.advertiserName || slug;
+        return { slug, name, flight: current, allFlights: all };
       })
       .filter(r => !retF || r.name === retF || r.slug === retF)
       .sort((a, b) => a.name.localeCompare(b.name, "de"));
@@ -156,7 +160,7 @@ export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cf
           const bestDisc = Math.max(0, ...offers.map(disc));
           const loyaltyCount = offers.filter(o => o.requiresLoyalty).length;
           const hasLeaflet = leafletFlights[g.slug]?.length > 0;
-          const topFlight = hasLeaflet ? leafletFlights[g.slug][0] : null;
+          const { current: topFlight, all: allFlights } = hasLeaflet ? pickCurrentFlight(leafletFlights[g.slug]) : { current: null, all: [] };
           return <div key={g.slug} style={{ marginBottom: "6px", animation: "fadeIn 0.3s ease" }}>
             <div style={{ display: "flex", alignItems: "stretch", borderRadius: open ? "10px 10px 0 0" : "10px", overflow: "hidden" }}>
               <button onClick={() => togRet(g.slug, open)} style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: open ? rc : "#fff", border: open ? "none" : "1px solid #eee", borderRight: "none", borderRadius: 0, cursor: "pointer", fontFamily: "inherit", gap: "6px", transition: "all 0.15s", overflow: "hidden" }}>
@@ -176,7 +180,7 @@ export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cf
                   <ChevD open={open} />
                 </div>
               </button>
-              {hasLeaflet && <button onClick={(e) => { e.stopPropagation(); onOpenProspekt(g.slug, g.name, topFlight); }} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px", padding: "6px 10px", background: open ? rc : "#fff", border: open ? "none" : "1px solid #eee", borderLeft: open ? `1px solid ${lt ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.2)"}` : "1px solid #eee", borderRadius: 0, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+              {hasLeaflet && <button onClick={(e) => { e.stopPropagation(); onOpenProspekt(g.slug, g.name, topFlight, allFlights); }} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px", padding: "6px 10px", background: open ? rc : "#fff", border: open ? "none" : "1px solid #eee", borderLeft: open ? `1px solid ${lt ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.2)"}` : "1px solid #eee", borderRadius: 0, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
                 <BookIc />
                 <span style={{ fontSize: "8px", fontWeight: 700, color: open ? (lt ? "#1a1a1a" : "#fff") : "#999", whiteSpace: "nowrap" }}>Prospekt</span>
               </button>}
@@ -221,7 +225,7 @@ export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cf
                   <div style={{ fontSize: "10px", color: "#bbb", fontFamily: "'JetBrains Mono',monospace" }}>Nur Prospekt · {r.flight.pageCount} Seiten</div>
                 </div>
               </div>
-              <button onClick={() => onOpenProspekt(r.slug, r.name, r.flight)} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px", padding: "6px 12px", background: "#fff", border: "1px solid #eee", borderLeft: "1px solid #eee", borderRadius: 0, cursor: "pointer", fontFamily: "inherit" }}>
+              <button onClick={() => onOpenProspekt(r.slug, r.name, r.flight, r.allFlights)} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px", padding: "6px 12px", background: "#fff", border: "1px solid #eee", borderLeft: "1px solid #eee", borderRadius: 0, cursor: "pointer", fontFamily: "inherit" }}>
                 <BookIc />
                 <span style={{ fontSize: "8px", fontWeight: 700, color: "#999", whiteSpace: "nowrap" }}>Prospekt</span>
               </button>

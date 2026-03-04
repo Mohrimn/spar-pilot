@@ -1,5 +1,6 @@
 import { getRetColor, isLightColor } from "../lib/constants.js";
 import { catLabel } from "../lib/offers.js";
+import { isStarted, getRelevantValidity, fmtDate } from "../lib/utils.js";
 import { CheckIc, TrashIc } from "./Icons.jsx";
 
 export function ListTab({ list, onRemove, onToggleCheck, onUpdateQty, onClearChecked }) {
@@ -23,7 +24,7 @@ export function ListTab({ list, onRemove, onToggleCheck, onUpdateQty, onClearChe
             <div style={{ fontSize: "9px", fontWeight: 700, color: "#bbb", padding: "6px 11px 2px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{cat}</div>
             {items.map(item => <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "7px", padding: "8px 11px", background: "#fff", borderBottom: "1px solid #f0efeb", opacity: item.ck ? 0.4 : 1, transition: "opacity 0.15s" }}>
               <button onClick={() => onToggleCheck(item.id)} style={{ width: "21px", height: "21px", borderRadius: "5px", flexShrink: 0, border: item.ck ? "none" : "2px solid #ddd", background: item.ck ? "#10b981" : "#fff", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{item.ck && <CheckIc />}</button>
-              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: "12px", fontWeight: 500, textDecoration: item.ck ? "line-through" : "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.offer.productName}</div><div style={{ fontSize: "10px", color: "#aaa" }}>{item.offer.brandName && <>{item.offer.brandName} · </>}{(item.offer.price * item.qty).toFixed(2)}€{item.qty > 1 && ` (${item.qty}×${item.offer.price.toFixed(2)})`}</div></div>
+              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: "12px", fontWeight: 500, textDecoration: item.ck ? "line-through" : "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.offer.productName}</div><div style={{ fontSize: "10px", color: "#aaa" }}>{item.offer.brandName && <>{item.offer.brandName} · </>}{(item.offer.price * item.qty).toFixed(2)}€{item.qty > 1 && ` (${item.qty}×${item.offer.price.toFixed(2)})`}</div>{!isStarted(item.offer) && (() => { const v = getRelevantValidity(item.offer.validityDates); return v ? <div style={{ fontSize: "9px", fontWeight: 700, color: "#d97706", background: "#fffbeb", padding: "1px 6px", borderRadius: "4px", marginTop: "2px", display: "inline-block" }}>ab {fmtDate(v.from)}</div> : null; })()}</div>
               <div style={{ display: "flex", alignItems: "center", gap: "2px", flexShrink: 0 }}>
                 <button onClick={() => onUpdateQty(item.id, -1)} style={{ width: "24px", height: "24px", borderRadius: "6px", border: "1.5px solid #e0e0db", background: "#fff", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#999" }}>−</button>
                 <span style={{ fontSize: "12px", fontWeight: 700, width: "16px", textAlign: "center", fontFamily: "'JetBrains Mono',monospace" }}>{item.qty}</span>

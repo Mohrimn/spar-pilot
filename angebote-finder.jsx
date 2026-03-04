@@ -74,7 +74,7 @@ export default function SparPilot() {
   };
   const goSearchWith = (term) => { setSearchPreFill(term); setTab("search"); };
 
-  const openProspekt = async (slug, name, flight) => {
+  const openProspekt = async (slug, name, flight, allFlights) => {
     savedScrollRef.current = mainScrollRef.current?.scrollTop ?? 0;
     let leafletId = flight.mainLeafletId;
     let pageCount = flight.pageCount;
@@ -83,7 +83,7 @@ export default function SparPilot() {
       const best = await fetchBestLeaflet(flight.id, cfg.zip, coords);
       if (best?.id) { leafletId = best.id; pageCount = best.pageCount || pageCount; }
     } catch (e) { console.error("[SP] best leaflet err:", e); }
-    setProspektOpen({ slug, name, leafletId, pageCount, offerCount: flight.offerCount, flight });
+    setProspektOpen({ slug, name, leafletId, pageCount, offerCount: flight.offerCount, flight, allFlights: allFlights || [flight] });
   };
   const closeProspekt = () => {
     setProspektOpen(null);
@@ -122,7 +122,7 @@ export default function SparPilot() {
       </div>
 
       {/* PROSPEKT VIEWER OVERLAY */}
-      {prospektOpen && <ProspektViewer key={prospektOpen.leafletId} prospektOpen={prospektOpen} onClose={closeProspekt} cfg={cfg} added={added} addItem={addItem} />}
+      {prospektOpen && <ProspektViewer key={prospektOpen.leafletId} prospektOpen={prospektOpen} onClose={closeProspekt} onSwitchFlight={(flight) => openProspekt(prospektOpen.slug, prospektOpen.name, flight, prospektOpen.allFlights)} cfg={cfg} added={added} addItem={addItem} />}
 
       {/* NAV */}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: "480px", display: "flex", background: "#fff", borderTop: "1.5px solid #eee", zIndex: 100, padding: "0 0 env(safe-area-inset-bottom)" }}>

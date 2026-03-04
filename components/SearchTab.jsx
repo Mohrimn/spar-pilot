@@ -3,7 +3,7 @@ import { getRetColor, isMyLoyalty, isLightColor } from "../lib/constants.js";
 import { disc, uPrice, isStarted } from "../lib/utils.js";
 import { catLabel, EXPANSIONS } from "../lib/offers.js";
 import { apiSearch } from "../lib/api.js";
-import { SearchIc, ZapIc } from "./Icons.jsx";
+import { SearchIc } from "./Icons.jsx";
 import { Spinner, ErrBox } from "./Shared.jsx";
 import { Card } from "./Card.jsx";
 
@@ -39,7 +39,14 @@ export function SearchTab({ cfg, added, addItem, searchHistory = [], onSearchHis
   }, [initialQ]);
 
   const srt = (arr) => [...arr].sort((a, b) => {
-    if (sort === "unitPrice") return (uPrice(a) || a.price) - (uPrice(b) || b.price);
+    if (sort === "unitPrice") {
+      const ua = uPrice(a), ub = uPrice(b);
+      // Items with unit price sort before items without, then by unit price; fallback to pack price
+      if (ua && ub) return ua - ub;
+      if (ua && !ub) return -1;
+      if (!ua && ub) return 1;
+      return a.price - b.price;
+    }
     if (sort === "price") return a.price - b.price;
     if (sort === "discount") return disc(b) - disc(a);
     if (sort === "endsSoon") { const ae = a.validityDates?.[0]?.to ? new Date(a.validityDates[0].to) : new Date("2099-01-01"); const be = b.validityDates?.[0]?.to ? new Date(b.validityDates[0].to) : new Date("2099-01-01"); return ae - be; }
@@ -103,8 +110,7 @@ export function SearchTab({ cfg, added, addItem, searchHistory = [], onSearchHis
         {err && <ErrBox msg={err} onRetry={() => doSearch(null, q)} />}
         {sDone && !loading && sRes.length === 0 && !err && <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}><div style={{ fontSize: "32px", marginBottom: "8px" }}>😕</div><div style={{ fontSize: "13px" }}>Keine Treffer für „{q}"</div></div>}
         {sDone && !loading && sRes.length > 0 && fs.length === 0 && !err && <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}><div style={{ fontSize: "32px", marginBottom: "8px" }}>⏳</div><div style={{ fontSize: "13px" }}>Nur kommende Angebote gefunden</div><div style={{ fontSize: "11px", marginTop: "3px", fontFamily: "'JetBrains Mono',monospace" }}>Filter „Nur gestartet" deaktivieren</div></div>}
-        {fs.length > 0 && !added.has(fs[0]?.id) && <button onClick={() => addItem(fs[0])} style={{ width: "100%", padding: "10px", borderRadius: "10px", background: "#059669", color: "#fff", border: "none", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "8px" }}><ZapIc /> Günstigstes: {fs[0]?.price.toFixed(2)}€ bei {fs[0]?.retailerName}</button>}
-        {searchGroupBy === "none" && fs.map(o => <div key={o.id} style={{ marginBottom: "6px", animation: "fadeIn 0.2s ease" }}><Card o={o} added={added} addItem={addItem} myLoyalty={cfg.myLoyalty} /></div>)}
+{searchGroupBy === "none" && fs.map(o => <div key={o.id} style={{ marginBottom: "6px", animation: "fadeIn 0.2s ease" }}><Card o={o} added={added} addItem={addItem} myLoyalty={cfg.myLoyalty} /></div>)}
         {searchGroupBy !== "none" && searchGrouped.map(g => { const vendorMode = searchGroupBy === "vendor"; const rc = vendorMode ? getRetColor(g.offers[0]?.retailerSlug, g.name) : "#1a1a1a"; const lt = isLightColor(rc); return <div key={g.name} style={{ marginBottom: "10px", animation: "fadeIn 0.2s ease" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px", background: vendorMode ? rc : "#fff", border: vendorMode ? "none" : "1px solid #eee", borderRadius: "9px 9px 4px 4px", color: vendorMode ? (lt ? "#1a1a1a" : "#fff") : "#1a1a1a" }}>
             <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.4px" }}>{g.name}</span>

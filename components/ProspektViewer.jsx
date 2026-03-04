@@ -4,7 +4,7 @@ import { fmtDate, disc, uPrice } from "../lib/utils.js";
 import { leafletPageUrl, fetchLeafletDetail, fetchLeafletPageOffers } from "../lib/api.js";
 import { ArrowLIc, ArrowRIc, XIc, PlusIc, CheckIc } from "./Icons.jsx";
 
-export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
+export function ProspektViewer({ prospektOpen, onClose, onSwitchFlight, cfg, added, addItem }) {
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState(null);
   const [pageOffers, setPageOffers] = useState({});
@@ -137,17 +137,29 @@ export function ProspektViewer({ prospektOpen, onClose, cfg, added, addItem }) {
   return (
     <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:200,background:"#f5f4f0",display:"flex",flexDirection:"column",maxWidth:"480px",margin:"0 auto"}}>
       {/* Header */}
-      <div style={{padding:"10px 12px",background:"#1a1a1a",color:"#f5f4f0",display:"flex",alignItems:"center",gap:"10px",flexShrink:0}}>
-        <button onClick={onClose} style={{background:"none",border:"none",color:"#fff",cursor:"pointer",padding:"2px",display:"flex"}}><ArrowLIc/></button>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:"14px",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{prospektOpen.name}</div>
-          <div style={{fontSize:"10px",color:"#888",fontFamily:"'JetBrains Mono',monospace"}}>
-            Seite {page+1}/{prospektOpen.pageCount}
-            {prospektOpen.flight.validFrom&&` · ${fmtDate(prospektOpen.flight.validFrom)}–${fmtDate(prospektOpen.flight.validTo)}`}
+      <div style={{background:"#1a1a1a",color:"#f5f4f0",flexShrink:0}}>
+        <div style={{padding:"10px 12px",display:"flex",alignItems:"center",gap:"10px"}}>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"#fff",cursor:"pointer",padding:"2px",display:"flex"}}><ArrowLIc/></button>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:"14px",fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{prospektOpen.name}</div>
+            <div style={{fontSize:"10px",color:"#888",fontFamily:"'JetBrains Mono',monospace"}}>
+              Seite {page+1}/{prospektOpen.pageCount}
+              {prospektOpen.flight.validFrom&&` · ${fmtDate(prospektOpen.flight.validFrom)}–${fmtDate(prospektOpen.flight.validTo)}`}
+            </div>
           </div>
+          {prospektOpen.pageCount>1&&<button type="button" onClick={()=>setThumbsOpen(v=>!v)} style={{background:thumbsOpen?"#fff":"none",border:"none",color:thumbsOpen?"#1a1a1a":"#888",cursor:"pointer",padding:"4px 8px",borderRadius:"5px",fontSize:"10px",fontWeight:700,fontFamily:"inherit",flexShrink:0}}>Vorschau</button>}
+          {prospektOpen.offerCount>0&&<span style={{fontSize:"9px",padding:"3px 7px",borderRadius:"5px",background:"#10b98130",color:"#10b981",fontWeight:700,flexShrink:0}}>{prospektOpen.offerCount} Artikel</span>}
         </div>
-        {prospektOpen.pageCount>1&&<button type="button" onClick={()=>setThumbsOpen(v=>!v)} style={{background:thumbsOpen?"#fff":"none",border:"none",color:thumbsOpen?"#1a1a1a":"#888",cursor:"pointer",padding:"4px 8px",borderRadius:"5px",fontSize:"10px",fontWeight:700,fontFamily:"inherit",flexShrink:0}}>Vorschau</button>}
-        {prospektOpen.offerCount>0&&<span style={{fontSize:"9px",padding:"3px 7px",borderRadius:"5px",background:"#10b98130",color:"#10b981",fontWeight:700,flexShrink:0}}>{prospektOpen.offerCount} Artikel</span>}
+        {prospektOpen.allFlights?.length>1&&<div style={{display:"flex",gap:"6px",padding:"0 12px 8px",overflowX:"auto",scrollbarWidth:"none"}}>
+          {prospektOpen.allFlights.map((f,i)=>{
+            const isActive=f.id===prospektOpen.flight.id;
+            const now=new Date();
+            const isCurrent=new Date(f.validFrom)<=now&&now<=new Date(f.validTo);
+            return<button key={f.id||i} onClick={()=>{if(!isActive&&onSwitchFlight)onSwitchFlight(f);}} style={{padding:"3px 10px",borderRadius:"12px",fontSize:"10px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",border:isActive?"1.5px solid #10b981":"1.5px solid #444",background:isActive?"#10b98125":"transparent",color:isActive?"#10b981":"#888",cursor:isActive?"default":"pointer",whiteSpace:"nowrap",flexShrink:0}}>
+              {fmtDate(f.validFrom)}–{fmtDate(f.validTo)}{isCurrent?" ●":""}
+            </button>;
+          })}
+        </div>}
       </div>
 
       {/* Page image with hotspots */}
