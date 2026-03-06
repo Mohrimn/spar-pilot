@@ -6,7 +6,7 @@ export function SettingsTab({ cfg, onUpdateCfg, onLoadBrowse, onClearList }) {
   const toggleShowAllIndustries = () => {
     const next = !cfg.showAllIndustries;
     onUpdateCfg({ showAllIndustries: next });
-    onLoadBrowse({ showAllIndustries: next });
+    onLoadBrowse({ showAllIndustries: next, force: true });
   };
 
   const allLoyalty = loyaltyRetailers();
@@ -42,7 +42,7 @@ export function SettingsTab({ cfg, onUpdateCfg, onLoadBrowse, onClearList }) {
         <label style={sectionLabel}>Postleitzahl</label>
         <div style={{ display: "flex", gap: "8px" }}>
           <input type="text" value={cfg.zip} onChange={e => onUpdateCfg({ zip: e.target.value.replace(/\D/g, "").slice(0, 5) })} style={{ flex: 1, padding: "10px 12px", borderRadius: "9px", border: "2px solid #e5e5e0", fontSize: "16px", fontFamily: "'JetBrains Mono',monospace", background: "#fff", outline: "none" }} />
-          <button onClick={() => onLoadBrowse()} style={{ padding: "10px 14px", borderRadius: "9px", background: "#1a1a1a", color: "#fff", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Laden</button>
+          <button onClick={() => onLoadBrowse({ force: true })} style={{ padding: "10px 14px", borderRadius: "9px", background: "#1a1a1a", color: "#fff", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Laden</button>
         </div>
       </div>
 

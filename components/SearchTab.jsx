@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { getRetColor, isMyLoyalty, isLightColor } from "../lib/constants.js";
 import { disc, uPrice, isStarted } from "../lib/utils.js";
 import { catLabel, EXPANSIONS } from "../lib/offers.js";
@@ -16,29 +16,43 @@ export function SearchTab({ cfg, added, addItem, searchHistory = [], onSearchHis
   const [sort, setSort] = useState("unitPrice");
   const [searchGroupBy, setSearchGroupBy] = useState("vendor");
   const [searchOnlyStarted, setSearchOnlyStarted] = useState(false);
+  const requestRef = useRef(0);
+  const qRef = useRef(q);
 
-  const doSearch = async (e, overrideQ) => {
+  useEffect(() => {
+    qRef.current = q;
+  }, [q]);
+
+  const doSearch = useCallback(async (e, overrideQ, options = {}) => {
     e?.preventDefault();
-    const term = overrideQ || q;
+    const term = overrideQ || qRef.current;
     if (!term.trim() || term.trim().length < 2) return;
+    const force = !!options.force;
+    const requestId = requestRef.current + 1;
+    requestRef.current = requestId;
     setLoading(true); setErr(null); setSDone(false);
     try {
       const expanded = cfg.expand && EXPANSIONS[term.trim().toLowerCase()] ? EXPANSIONS[term.trim().toLowerCase()] : term;
-      const offers = await apiSearch(expanded, cfg.zip);
+      const offers = await apiSearch(expanded, cfg.zip, 200, { force });
+      if (requestRef.current !== requestId) return;
       setSRes(offers); setSDone(true);
       onSearchHistoryUpdate?.(term.trim());
-    } catch (e) { setErr(e.message); setSRes([]); setSDone(true); }
-    finally { setLoading(false); }
-  };
+    } catch (e) {
+      if (requestRef.current !== requestId) return;
+      setErr(e.message); setSRes([]); setSDone(true);
+    } finally {
+      if (requestRef.current === requestId) setLoading(false);
+    }
+  }, [cfg.expand, cfg.zip, onSearchHistoryUpdate]);
 
   useEffect(() => {
     if (!initialQ) return;
     setQ(initialQ);
     doSearch(null, initialQ);
     onConsumeInitialQ?.();
-  }, [initialQ]);
+  }, [doSearch, initialQ, onConsumeInitialQ]);
 
-  const srt = (arr) => [...arr].sort((a, b) => {
+  const srt = useCallback((arr) => [...arr].sort((a, b) => {
     if (sort === "unitPrice") {
       const ua = uPrice(a), ub = uPrice(b);
       // Items with unit price sort before items without, then by unit price; fallback to pack price
@@ -51,19 +65,19 @@ export function SearchTab({ cfg, added, addItem, searchHistory = [], onSearchHis
     if (sort === "discount") return disc(b) - disc(a);
     if (sort === "endsSoon") { const ae = a.validityDates?.[0]?.to ? new Date(a.validityDates[0].to) : new Date("2099-01-01"); const be = b.validityDates?.[0]?.to ? new Date(b.validityDates[0].to) : new Date("2099-01-01"); return ae - be; }
     return 0;
-  });
+  }), [sort]);
 
-  const filtOffers = (arr) => {
+  const filtOffers = useCallback((arr) => {
     let r = [...arr];
     if (!cfg.loyalty) r = r.filter(o => !o.requiresLoyalty || isMyLoyalty(o.retailerSlug, o.retailerName, cfg.myLoyalty));
     return r;
-  };
+  }, [cfg.loyalty, cfg.myLoyalty]);
 
-  const fsBase = srt(filtOffers(sRes));
-  const fs = searchOnlyStarted ? fsBase.filter(o => isStarted(o)) : fsBase;
-  const searchVendorCount = new Set(fs.map(o => o.retailerName)).size;
-  const searchUpcomingCount = fs.filter(o => !isStarted(o)).length;
-  const searchGrouped = (() => {
+  const fsBase = useMemo(() => srt(filtOffers(sRes)), [filtOffers, sRes, srt]);
+  const fs = useMemo(() => searchOnlyStarted ? fsBase.filter(o => isStarted(o)) : fsBase, [fsBase, searchOnlyStarted]);
+  const searchVendorCount = useMemo(() => new Set(fs.map(o => o.retailerName)).size, [fs]);
+  const searchUpcomingCount = useMemo(() => fs.filter(o => !isStarted(o)).length, [fs]);
+  const searchGrouped = useMemo(() => {
     if (searchGroupBy === "none") return [];
     const keyFn = searchGroupBy === "vendor"
       ? (o) => o.retailerName || "Unbekannt"
@@ -75,7 +89,7 @@ export function SearchTab({ cfg, added, addItem, searchHistory = [], onSearchHis
       groups.get(k).push(o);
     }
     return Array.from(groups.entries()).map(([name, offers]) => ({ name, offers }));
-  })();
+  }, [fs, searchGroupBy]);
 
   return (
     <div>
@@ -107,7 +121,7 @@ export function SearchTab({ cfg, added, addItem, searchHistory = [], onSearchHis
       <div style={{ padding: "6px 18px 18px" }}>
         {loading && <Spinner text="Suche läuft…" />}
         {!loading && !sDone && !err && <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}><div style={{ fontSize: "32px", marginBottom: "8px" }}>🔍</div><div style={{ fontSize: "13px", fontWeight: 500 }}>Produkt suchen</div><div style={{ fontSize: "11px", marginTop: "3px", fontFamily: "'JetBrains Mono',monospace" }}>"milch OR hafermilch" · kell* · "irische butter"</div></div>}
-        {err && <ErrBox msg={err} onRetry={() => doSearch(null, q)} />}
+        {err && <ErrBox msg={err} onRetry={() => doSearch(null, q, { force: true })} />}
         {sDone && !loading && sRes.length === 0 && !err && <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}><div style={{ fontSize: "32px", marginBottom: "8px" }}>😕</div><div style={{ fontSize: "13px" }}>Keine Treffer für „{q}"</div></div>}
         {sDone && !loading && sRes.length > 0 && fs.length === 0 && !err && <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}><div style={{ fontSize: "32px", marginBottom: "8px" }}>⏳</div><div style={{ fontSize: "13px" }}>Nur kommende Angebote gefunden</div><div style={{ fontSize: "11px", marginTop: "3px", fontFamily: "'JetBrains Mono',monospace" }}>Filter „Nur gestartet" deaktivieren</div></div>}
 {searchGroupBy === "none" && fs.map(o => <div key={o.id} style={{ marginBottom: "6px", animation: "fadeIn 0.2s ease" }}><Card o={o} added={added} addItem={addItem} myLoyalty={cfg.myLoyalty} /></div>)}

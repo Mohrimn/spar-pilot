@@ -95,10 +95,9 @@ export function ProspektViewer({ prospektOpen, onClose, onSwitchFlight, cfg, add
     }
   };
 
-  // Expose initLoad to parent via ref-like pattern — but simpler: parent calls open, we detect change
-  // Actually, we use a key-based remount from parent, so useState defaults are fine.
-  // But we still need initLoad on mount:
-  useState(() => { initLoad(prospektOpen); });
+  useEffect(() => {
+    initLoad(prospektOpen);
+  }, [prospektOpen]);
 
   // Load offers when page changes
   useEffect(() => {
