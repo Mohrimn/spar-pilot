@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useDeferredValue, useCallback } from "react";
 import { getRetColor, isMyLoyalty, isLightColor, RETAILER_META } from "../lib/constants.js";
 import { normalizeText, disc, uPrice, pickCurrentFlight } from "../lib/utils.js";
 import { catLabel, groupOffersByCategory, scoreOfferMatch } from "../lib/offers.js";
@@ -13,30 +13,40 @@ export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cf
   const [catF, setCatF] = useState(null);
   const [angeboteQ, setAngeboteQ] = useState("");
   const prevAngeboteQRef = useRef("");
+  const deferredAngeboteQ = useDeferredValue(angeboteQ);
 
-  const srt = (arr) => [...arr].sort((a, b) => {
+  const srt = useCallback((arr) => [...arr].sort((a, b) => {
     const ua = uPrice(a), ub = uPrice(b);
     if (ua && ub) return ua - ub;
     if (ua && !ub) return -1;
     if (!ua && ub) return 1;
     return a.price - b.price;
-  });
+  }), []);
 
-  const filtOffers = (arr) => {
+  const filtOffers = useCallback((arr) => {
     let r = [...arr];
     if (!cfg.loyalty) r = r.filter(o => !o.requiresLoyalty || isMyLoyalty(o.retailerSlug, o.retailerName, cfg.myLoyalty));
     return r;
-  };
+  }, [cfg.loyalty, cfg.myLoyalty]);
 
-  const filtGroups = pubGroups.filter(g => !retF || g.name === retF || g.slug === retF);
-  const allRetailers = pubGroups.map(g => g.name);
-  const angeboteQNorm = normalizeText(angeboteQ);
-  const categoryCounts = (() => { const m = new Map(); filtGroups.forEach(g => { filtOffers(g.offers).forEach(o => { const c = catLabel(o); m.set(c, (m.get(c) || 0) + 1); }); }); return m; })();
-  const allCategories = Array.from(categoryCounts.keys()).sort((a, b) => a.localeCompare(b, "de"));
+  const filtGroups = useMemo(() => pubGroups.filter(g => !retF || g.name === retF || g.slug === retF), [pubGroups, retF]);
+  const allRetailers = useMemo(() => pubGroups.map(g => g.name), [pubGroups]);
+  const angeboteQNorm = useMemo(() => normalizeText(deferredAngeboteQ), [deferredAngeboteQ]);
+  const categoryCounts = useMemo(() => {
+    const m = new Map();
+    filtGroups.forEach(g => {
+      filtOffers(g.offers).forEach(o => {
+        const c = catLabel(o);
+        m.set(c, (m.get(c) || 0) + 1);
+      });
+    });
+    return m;
+  }, [filtGroups, filtOffers]);
+  const allCategories = useMemo(() => Array.from(categoryCounts.keys()).sort((a, b) => a.localeCompare(b, "de")), [categoryCounts]);
   const allCategoriesKey = allCategories.join("|");
   useEffect(() => { if (catF && !allCategories.includes(catF)) setCatF(null); }, [catF, allCategoriesKey]);
 
-  const visGroups = filtGroups.map(g => {
+  const visGroups = useMemo(() => filtGroups.map(g => {
     const base = filtOffers(g.offers);
     const catFiltered = catF ? base.filter(o => catLabel(o) === catF) : base;
     const offers = angeboteQNorm
@@ -52,9 +62,9 @@ export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cf
       : catFiltered;
     const groupedCategories = groupOffersByCategory(offers);
     return { ...g, groupedOffers: offers, groupedCategories };
-  }).filter(g => g.groupedOffers.length > 0);
+  }).filter(g => g.groupedOffers.length > 0), [angeboteQNorm, catF, filtGroups, filtOffers]);
 
-  const leafletOnlyRetailers = (() => {
+  const leafletOnlyRetailers = useMemo(() => {
     const pubSlugs = new Set(pubGroups.map(g => g.slug));
     return Object.entries(leafletFlights)
       .filter(([slug]) => !pubSlugs.has(slug))
@@ -65,7 +75,7 @@ export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cf
       })
       .filter(r => !retF || r.name === retF || r.slug === retF)
       .sort((a, b) => a.name.localeCompare(b.name, "de"));
-  })();
+  }, [leafletFlights, pubGroups, retF]);
 
   const visGroupSlugsKey = visGroups.map(g => g.slug).join("|");
   useEffect(() => { setOpenCatsByRet({}); }, [angeboteQNorm, retF, catF, visGroupSlugsKey]);
@@ -132,13 +142,13 @@ export function AngeboteTab({ pubGroups, leafletFlights, storeLocations = {}, cf
           <span style={{ fontSize: "10px", color: "#bbb", fontFamily: "'JetBrains Mono',monospace" }}>{totalOffers} Angebote · {visGroups.length + leafletOnlyRetailers.length} Läden{catF ? ` · ${catF}` : ""}{angeboteQNorm ? " · Filter aktiv" : ""}</span>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             {angeboteQNorm && onGoSearch && <button type="button" onClick={() => onGoSearch(angeboteQ.trim())} style={{ padding: "4px 10px", borderRadius: "14px", fontSize: "10px", fontWeight: 600, border: "1.5px solid #e0e0db", background: "#fff", color: "#666", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}><SearchIc /> Alle Händler</button>}
-            <button onClick={onLoadBrowse} disabled={bLoad} style={{ background: "none", border: "none", color: "#999", cursor: "pointer", display: "flex", alignItems: "center", gap: "3px", fontSize: "10px", fontFamily: "inherit" }}><RefIc /> Neu laden</button>
+            <button onClick={() => onLoadBrowse({ force: true })} disabled={bLoad} style={{ background: "none", border: "none", color: "#999", cursor: "pointer", display: "flex", alignItems: "center", gap: "3px", fontSize: "10px", fontFamily: "inherit" }}><RefIc /> Neu laden</button>
           </div>
         </div>
       </div>
 
       {bLoad && <Spinner text="Lade Prospekte…" />}
-      {bErr && !bLoad && <ErrBox msg={bErr} onRetry={onLoadBrowse} />}
+      {bErr && !bLoad && <ErrBox msg={bErr} onRetry={() => onLoadBrowse({ force: true })} />}
       {!bLoad && !bErr && visGroups.length === 0 && !hasAngeboteRefinements && <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}><div style={{ fontSize: "32px", marginBottom: "8px" }}>📭</div><div style={{ fontSize: "13px" }}>Keine Prospekte gefunden</div></div>}
       {!bLoad && !bErr && visGroups.length === 0 && hasAngeboteRefinements && <div style={{ textAlign: "center", padding: "42px 18px", color: "#bbb" }}>
         <div style={{ fontSize: "32px", marginBottom: "8px" }}>🔎</div>

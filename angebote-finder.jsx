@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { DEFAULT_ZIP } from "./lib/settings.js";
 import { DEFAULT_LOYALTY } from "./lib/constants.js";
 import { sLoad, sSave } from "./lib/utils.js";
@@ -27,13 +27,15 @@ export default function SparPilot() {
   const geoCacheRef = useRef({ zip: null, coords: null });
   const mainScrollRef = useRef(null);
   const savedScrollRef = useRef(0);
+  const browseRequestRef = useRef(0);
+  const storeRequestRef = useRef(0);
 
-  const getCoords = async (zip) => {
+  const getCoords = useCallback(async (zip, options = {}) => {
     if (geoCacheRef.current.zip === zip) return geoCacheRef.current.coords;
-    const coords = await geocodeZip(zip);
+    const coords = await geocodeZip(zip, options);
     geoCacheRef.current = { zip, coords };
     return coords;
-  };
+  }, []);
 
   useEffect(() => { (async () => { const l = await sLoad("sp5-list", []); const c = await sLoad("sp5-cfg", null); const h = await sLoad("sp5-searchHistory", []); if (l.length) setList(l); if (c) setCfg(s => ({ ...s, ...c })); if (h.length) setSearchHistory(h); setRdy(true); })(); }, []);
   useEffect(() => { if (rdy) sSave("sp5-list", list); }, [list, rdy]);
@@ -42,28 +44,40 @@ export default function SparPilot() {
   useEffect(() => { setAdded(new Set(list.map(i => i.oid))); }, [list]);
   useEffect(() => { if (rdy) doLoadBrowse(); }, [rdy]);
 
-  const doLoadBrowse = async (options = {}) => {
+  const doLoadBrowse = useCallback(async (options = {}) => {
     const zip = options.zipCode ?? cfg.zip;
     const showAllIndustries = options.showAllIndustries ?? cfg.showAllIndustries;
-    setBLoad(true); setBErr(null);
+    const force = !!options.force;
+    const requestId = browseRequestRef.current + 1;
+    browseRequestRef.current = requestId;
+    setBLoad(true); setBErr(null); setStoreLocations({});
     try {
       const [groups, flights] = await Promise.all([
-        fetchPublishers(zip, { showAllIndustries }),
-        fetchLeafletFlights(zip, { showAllIndustries }).catch(e => { console.error("[SP] leaflet flights err:", e); return {}; }),
+        fetchPublishers(zip, { showAllIndustries, force }),
+        fetchLeafletFlights(zip, { showAllIndustries, force }).catch(e => { console.error("[SP] leaflet flights err:", e); return {}; }),
       ]);
+      if (browseRequestRef.current !== requestId) return;
       setPubGroups(groups);
       setLeafletFlights(flights);
-      // Fetch store locations in background (non-blocking)
       if (Object.keys(flights).length > 0) {
-        getCoords(zip).then(coords => {
-          fetchStoreLocations(flights, zip, coords)
-            .then(locs => setStoreLocations(locs))
+        const storeRequestId = storeRequestRef.current + 1;
+        storeRequestRef.current = storeRequestId;
+        getCoords(zip, { force }).then(coords => {
+          fetchStoreLocations(flights, zip, coords, { force })
+            .then(locs => {
+              if (storeRequestRef.current === storeRequestId && browseRequestRef.current === requestId) {
+                setStoreLocations(locs);
+              }
+            })
             .catch(e => console.error("[SP] store locations err:", e));
         });
       }
-    } catch (e) { setBErr(e.message); }
-    finally { setBLoad(false); }
-  };
+    } catch (e) {
+      if (browseRequestRef.current === requestId) setBErr(e.message);
+    } finally {
+      if (browseRequestRef.current === requestId) setBLoad(false);
+    }
+  }, [cfg.showAllIndustries, cfg.zip, getCoords]);
 
   const addToHistory = (term) => {
     if (term === "__clear__") { setSearchHistory([]); return; }
@@ -72,9 +86,9 @@ export default function SparPilot() {
       return [trimmed, ...prev.filter(t => t.toLowerCase() !== trimmed.toLowerCase())].slice(0, 8);
     });
   };
-  const goSearchWith = (term) => { setSearchPreFill(term); setTab("search"); };
+  const goSearchWith = useCallback((term) => { setSearchPreFill(term); setTab("search"); }, []);
 
-  const openProspekt = async (slug, name, flight, allFlights) => {
+  const openProspekt = useCallback(async (slug, name, flight, allFlights) => {
     savedScrollRef.current = mainScrollRef.current?.scrollTop ?? 0;
     let leafletId = flight.mainLeafletId;
     let pageCount = flight.pageCount;
@@ -84,11 +98,11 @@ export default function SparPilot() {
       if (best?.id) { leafletId = best.id; pageCount = best.pageCount || pageCount; }
     } catch (e) { console.error("[SP] best leaflet err:", e); }
     setProspektOpen({ slug, name, leafletId, pageCount, offerCount: flight.offerCount, flight, allFlights: allFlights || [flight] });
-  };
-  const closeProspekt = () => {
+  }, [cfg.zip, getCoords]);
+  const closeProspekt = useCallback(() => {
     setProspektOpen(null);
     requestAnimationFrame(() => { if (mainScrollRef.current) mainScrollRef.current.scrollTop = savedScrollRef.current; });
-  };
+  }, []);
 
   const addItem = o => { if (added.has(o.id)) return; setList(p => [...p, { id: Date.now() + "_" + o.id, oid: o.id, offer: o, qty: 1, ck: false }]); };
   const rmItem = id => setList(p => p.filter(i => i.id !== id));
@@ -96,13 +110,10 @@ export default function SparPilot() {
   const updQ = (id, d) => setList(p => p.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + d) } : i));
   const clrCk = () => setList(p => p.filter(i => !i.ck));
 
-  const tot = list.reduce((s, i) => s + i.offer.price * i.qty, 0);
+  const tot = useMemo(() => list.reduce((s, i) => s + i.offer.price * i.qty, 0), [list]);
 
   return (
     <div style={{ fontFamily: "'DM Sans','Helvetica Neue',sans-serif", background: "#f5f4f0", minHeight: "100vh", maxWidth: "480px", margin: "0 auto", display: "flex", flexDirection: "column", color: "#1a1a1a", position: "relative" }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet" />
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}input::placeholder{color:#bbb}::-webkit-scrollbar{width:0}`}</style>
-
       {/* HEADER */}
       <div style={{ padding: "12px 18px 8px", background: "#1a1a1a", color: "#f5f4f0", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
