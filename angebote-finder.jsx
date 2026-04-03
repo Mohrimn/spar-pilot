@@ -1,19 +1,31 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { DEFAULT_ZIP } from "./lib/settings.js";
+import { DEFAULT_ZIP, DEFAULT_TANKERKOENIG_API_KEY, DEFAULT_FUEL_RADIUS_KM, DEFAULT_FUEL_TYPE } from "./lib/settings.js";
 import { DEFAULT_LOYALTY } from "./lib/constants.js";
 import { sLoad, sSave } from "./lib/utils.js";
 import { fetchPublishers, fetchLeafletFlights, fetchStoreLocations, fetchBestLeaflet, geocodeZip } from "./lib/api.js";
-import { TagIc, SearchIc, ListIc, GearIc, ZapIc } from "./components/Icons.jsx";
+import { TagIc, SearchIc, ListIc, GearIc, ZapIc, FuelIc } from "./components/Icons.jsx";
 import { ProspektViewer } from "./components/ProspektViewer.jsx";
 import { AngeboteTab } from "./components/AngeboteTab.jsx";
 import { SearchTab } from "./components/SearchTab.jsx";
 import { ListTab } from "./components/ListTab.jsx";
+import { GasPricesTab } from "./components/GasPricesTab.jsx";
 import { SettingsTab } from "./components/SettingsTab.jsx";
 
 export default function SparPilot() {
   const [tab, setTab] = useState("angebote");
   const [list, setList] = useState([]);
-  const [cfg, setCfg] = useState({ zip: DEFAULT_ZIP, loyalty: true, mode: "per_unit", expand: false, showAllIndustries: false, myLoyalty: DEFAULT_LOYALTY });
+  const [cfg, setCfg] = useState({
+    zip: DEFAULT_ZIP,
+    loyalty: true,
+    mode: "per_unit",
+    expand: false,
+    showAllIndustries: false,
+    myLoyalty: DEFAULT_LOYALTY,
+    fuelApiKey: DEFAULT_TANKERKOENIG_API_KEY,
+    fuelRadiusKm: DEFAULT_FUEL_RADIUS_KM,
+    fuelType: DEFAULT_FUEL_TYPE,
+    fuelOpenOnly: true,
+  });
   const [added, setAdded] = useState(new Set());
   const [pubGroups, setPubGroups] = useState([]);
   const [leafletFlights, setLeafletFlights] = useState({});
@@ -37,9 +49,23 @@ export default function SparPilot() {
     return coords;
   }, []);
 
-  useEffect(() => { (async () => { const l = await sLoad("sp5-list", []); const c = await sLoad("sp5-cfg", null); const h = await sLoad("sp5-searchHistory", []); if (l.length) setList(l); if (c) setCfg(s => ({ ...s, ...c })); if (h.length) setSearchHistory(h); setRdy(true); })(); }, []);
+  useEffect(() => {
+    (async () => {
+      const l = await sLoad("sp5-list", []);
+      const c = await sLoad("sp5-cfg", null);
+      const h = await sLoad("sp5-searchHistory", []);
+      if (l.length) setList(l);
+      if (c) setCfg((s) => ({ ...s, ...c, fuelApiKey: s.fuelApiKey }));
+      if (h.length) setSearchHistory(h);
+      setRdy(true);
+    })();
+  }, []);
   useEffect(() => { if (rdy) sSave("sp5-list", list); }, [list, rdy]);
-  useEffect(() => { if (rdy) sSave("sp5-cfg", cfg); }, [cfg, rdy]);
+  useEffect(() => {
+    if (!rdy) return;
+    const { fuelApiKey, ...persistedCfg } = cfg;
+    sSave("sp5-cfg", persistedCfg);
+  }, [cfg, rdy]);
   useEffect(() => { if (rdy) sSave("sp5-searchHistory", searchHistory); }, [searchHistory, rdy]);
   useEffect(() => { setAdded(new Set(list.map(i => i.oid))); }, [list]);
   useEffect(() => { if (rdy) doLoadBrowse(); }, [rdy]);
@@ -128,6 +154,7 @@ export default function SparPilot() {
       <div ref={mainScrollRef} style={{ flex: 1, overflowY: "auto", paddingBottom: "66px" }}>
         {tab === "angebote" && <AngeboteTab pubGroups={pubGroups} leafletFlights={leafletFlights} storeLocations={storeLocations} cfg={cfg} added={added} addItem={addItem} onLoadBrowse={doLoadBrowse} bLoad={bLoad} bErr={bErr} onOpenProspekt={openProspekt} onGoSearch={goSearchWith} />}
         {tab === "search" && <SearchTab cfg={cfg} added={added} addItem={addItem} searchHistory={searchHistory} onSearchHistoryUpdate={addToHistory} initialQ={searchPreFill} onConsumeInitialQ={() => setSearchPreFill(null)} />}
+        {tab === "fuel" && <GasPricesTab cfg={cfg} active={tab === "fuel"} onUpdateCfg={patch => setCfg(s => ({ ...s, ...patch }))} getCoords={getCoords} />}
         {tab === "list" && <ListTab list={list} onRemove={rmItem} onToggleCheck={togCk} onUpdateQty={updQ} onClearChecked={clrCk} />}
         {tab === "settings" && <SettingsTab cfg={cfg} onUpdateCfg={patch => setCfg(s => ({ ...s, ...patch }))} onLoadBrowse={doLoadBrowse} onClearList={() => { if (confirm("Einkaufsliste leeren?")) setList([]); }} />}
       </div>
@@ -137,7 +164,7 @@ export default function SparPilot() {
 
       {/* NAV */}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: "480px", display: "flex", background: "#fff", borderTop: "1.5px solid #eee", zIndex: 100, padding: "0 0 env(safe-area-inset-bottom)" }}>
-        {[{ k: "angebote", ic: <TagIc />, l: "Angebote" }, { k: "search", ic: <SearchIc />, l: "Suche" }, { k: "list", ic: <ListIc />, l: "Liste", b: list.length }, { k: "settings", ic: <GearIc />, l: "Mehr" }].map(t => <button key={t.k} onClick={() => setTab(t.k)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", padding: "8px 0 6px", border: "none", background: "transparent", color: tab === t.k ? "#1a1a1a" : "#ccc", cursor: "pointer", position: "relative", fontFamily: "inherit", transition: "color 0.1s" }}>
+        {[{ k: "angebote", ic: <TagIc />, l: "Angebote" }, { k: "search", ic: <SearchIc />, l: "Suche" }, { k: "list", ic: <ListIc />, l: "Liste", b: list.length }, { k: "fuel", ic: <FuelIc />, l: "Tanken" }, { k: "settings", ic: <GearIc />, l: "Mehr" }].map(t => <button key={t.k} onClick={() => setTab(t.k)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", padding: "8px 0 6px", border: "none", background: "transparent", color: tab === t.k ? "#1a1a1a" : "#ccc", cursor: "pointer", position: "relative", fontFamily: "inherit", transition: "color 0.1s" }}>
           {t.b > 0 && <span style={{ position: "absolute", top: "2px", right: "calc(50% - 15px)", background: "#10b981", color: "#fff", fontSize: "8px", fontWeight: 800, width: "14px", height: "14px", borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center" }}>{t.b}</span>}
           {t.ic}<span style={{ fontSize: "9px", fontWeight: tab === t.k ? 800 : 500 }}>{t.l}</span>
         </button>)}

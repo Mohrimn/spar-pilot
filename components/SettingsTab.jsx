@@ -1,4 +1,4 @@
-import { RETAILER_META, loyaltyRetailers, getRetColor, isLightColor } from "../lib/constants.js";
+import { loyaltyRetailers, getRetColor, isLightColor } from "../lib/constants.js";
 import { StarIc } from "./Icons.jsx";
 import { Tog } from "./Shared.jsx";
 
@@ -56,6 +56,45 @@ export function SettingsTab({ cfg, onUpdateCfg, onLoadBrowse, onClearList }) {
         </div>
       </div>
 
+      {/* Tanken */}
+      <div style={{ marginBottom: "18px" }}>
+        <label style={sectionLabel}>Tanken</label>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "10px", color: "#999", marginBottom: "4px" }}>Radius in km</div>
+              <input
+                type="number"
+                min="1"
+                max="25"
+                step="0.5"
+                value={cfg.fuelRadiusKm}
+                onChange={e => onUpdateCfg({ fuelRadiusKm: Math.min(25, Math.max(1, Number.parseFloat(e.target.value) || 1)) })}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: "9px", border: "2px solid #e5e5e0", fontSize: "15px", fontFamily: "'JetBrains Mono',monospace", background: "#fff", outline: "none" }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "10px", color: "#999", marginBottom: "4px" }}>Standardsorte</div>
+              <select
+                value={cfg.fuelType || "diesel"}
+                onChange={e => onUpdateCfg({ fuelType: e.target.value })}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: "9px", border: "2px solid #e5e5e0", fontSize: "13px", fontFamily: "inherit", background: "#fff", outline: "none" }}
+              >
+                <option value="diesel">Diesel</option>
+                <option value="e5">Super E5</option>
+                <option value="e10">Super E10</option>
+                <option value="all">Alle</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ fontSize: "10px", color: "#999", padding: "10px", background: "#fff", borderRadius: "9px", border: "1px solid #eee", lineHeight: 1.5 }}>
+            Tankerkönig arbeitet mit Koordinaten und Radius, nicht direkt mit PLZ-Filtern. Die App nutzt deshalb die eingegebene PLZ als Suchzentrum.
+            <br />
+            Der API-Key ist jetzt fest im Frontend hinterlegt und nicht mehr im UI sichtbar. Abfragen sollten laut API-Doku nur auf Useraktion erfolgen. Namensnennung ist erforderlich: Tankerkönig.de / CC BY 4.0.
+          </div>
+        </div>
+      </div>
+
       {/* Treueprogramme */}
       <div style={{ marginBottom: "18px" }}>
         <label style={sectionLabel}>Meine Treuekarten</label>
@@ -95,6 +134,7 @@ export function SettingsTab({ cfg, onUpdateCfg, onLoadBrowse, onClearList }) {
       <Tog label="Treueangebote" desc={cfg.loyalty ? "Alle anzeigen (inkl. Kartenangebote)" : "Nur Angebote ohne Treuekarte"} val={cfg.loyalty} set={() => onUpdateCfg({ loyalty: !cfg.loyalty })} />
       <Tog label="Erweiterte Suche" desc={cfg.expand ? "Begriffe automatisch erweitern" : "Nur exakte Suche"} val={cfg.expand} set={() => onUpdateCfg({ expand: !cfg.expand })} />
       <Tog label="Alle Branchen" desc={cfg.showAllIndustries ? "Auch Baumarkt, Möbel etc." : "Nur Lebensmittel & Drogerie"} val={cfg.showAllIndustries} set={toggleShowAllIndustries} />
+      <Tog label="Tankstellen offen" desc={cfg.fuelOpenOnly ? "Im Tanken-Tab nur offene Tankstellen" : "Im Tanken-Tab auch geschlossene Tankstellen"} val={cfg.fuelOpenOnly} set={() => onUpdateCfg({ fuelOpenOnly: !cfg.fuelOpenOnly })} />
 
       {/* Lucene help */}
       <div style={{ fontSize: "10px", color: "#ccc", padding: "10px", background: "#fff", borderRadius: "9px", border: "1px solid #eee", fontFamily: "'JetBrains Mono',monospace", lineHeight: 1.5, marginBottom: "16px" }}>

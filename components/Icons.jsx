@@ -15,3 +15,4 @@ export const ArrowLIc=()=><Ic d="M19 12H5M12 19l-7-7 7-7" s={22} w={2.5}/>;
 export const ArrowRIc=()=><Ic d="M5 12h14M12 5l7 7-7 7" s={22} w={2.5}/>;
 export const XIc=()=><Ic d="M18 6L6 18M6 6l12 12" s={20} w={2.5}/>;
 export const StoreIc=()=><Ic d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" s={14} w={2}/>;
+export const FuelIc=()=><Ic d="M9 3h6a1 1 0 011 1v16a1 1 0 01-1 1H9a1 1 0 01-1-1V4a1 1 0 011-1zm0 4h7M8 10H6a2 2 0 00-2 2v4a4 4 0 004 4h1m7-13h2l2 2v5a2 2 0 01-2 2h-1" w={2}/>;
