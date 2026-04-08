@@ -8,6 +8,7 @@ A mobile-first grocery deal finder for German supermarkets. Browse current offer
 - **Prospekt viewer** — Page through digital leaflets with clickable hotspots to add items directly
 - **Global search** — Lucene-style search across all retailers (supports `OR`, phrases, wildcards) with synonym expansion
 - **Shopping list** — Add offers from any tab, track quantities, check off items, grouped by store and category
+- **Tanken tab** — Live gas prices from nearby stations (E5, E10, Diesel) sorted by price, powered by the Tankerkönig API
 - **Settings** — ZIP code, loyalty card filtering, industry scope (grocery-only or all)
 
 Data comes from the MarktGuru API. Google or git history is your friend for finding needed API keys
@@ -60,6 +61,7 @@ components/
   SearchTab.jsx              Global search tab
   ListTab.jsx                Shopping list tab
   SettingsTab.jsx            Settings tab
+  GasPricesTab.jsx           Tanken tab — nearby fuel prices
 
 src/
   main.jsx                   React entry point + localStorage polyfill
