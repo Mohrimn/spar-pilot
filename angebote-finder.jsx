@@ -155,7 +155,7 @@ export default function SparPilot() {
         {tab === "angebote" && <AngeboteTab pubGroups={pubGroups} leafletFlights={leafletFlights} storeLocations={storeLocations} cfg={cfg} added={added} addItem={addItem} onLoadBrowse={doLoadBrowse} bLoad={bLoad} bErr={bErr} onOpenProspekt={openProspekt} onGoSearch={goSearchWith} />}
         {tab === "search" && <SearchTab cfg={cfg} added={added} addItem={addItem} searchHistory={searchHistory} onSearchHistoryUpdate={addToHistory} initialQ={searchPreFill} onConsumeInitialQ={() => setSearchPreFill(null)} />}
         {tab === "fuel" && <GasPricesTab cfg={cfg} active={tab === "fuel"} onUpdateCfg={patch => setCfg(s => ({ ...s, ...patch }))} getCoords={getCoords} />}
-        {tab === "list" && <ListTab list={list} onRemove={rmItem} onToggleCheck={togCk} onUpdateQty={updQ} onClearChecked={clrCk} />}
+        {tab === "list" && <ListTab list={list} storeLocations={storeLocations} onRemove={rmItem} onToggleCheck={togCk} onUpdateQty={updQ} onClearChecked={clrCk} />}
         {tab === "settings" && <SettingsTab cfg={cfg} onUpdateCfg={patch => setCfg(s => ({ ...s, ...patch }))} onLoadBrowse={doLoadBrowse} onClearList={() => { if (confirm("Einkaufsliste leeren?")) setList([]); }} />}
       </div>
 

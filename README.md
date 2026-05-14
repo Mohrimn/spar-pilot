@@ -7,7 +7,7 @@ A mobile-first grocery deal finder for German supermarkets. Browse current offer
 - **Angebote tab** — Browse offers grouped by retailer with category accordions, inline search, and retailer/category filters
 - **Prospekt viewer** — Page through digital leaflets with clickable hotspots to add items directly
 - **Global search** — Lucene-style search across all retailers (supports `OR`, phrases, wildcards) with synonym expansion
-- **Shopping list** — Add offers from any tab, track quantities, check off items, grouped by store and category
+- **Shopping list + Einkaufsplan** — Add offers from any tab, track quantities, compare store totals, spot expiring/future offers, and get a compact route plan
 - **Tanken tab** — Live gas prices from nearby stations (E5, E10, Diesel) sorted by price, powered by the Tankerkönig API
 - **Settings** — ZIP code, loyalty card filtering, industry scope (grocery-only or all)
 
