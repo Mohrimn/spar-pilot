@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { getRetColor, isMyLoyalty, isLightColor } from "../lib/constants.js";
 import { disc, uPrice, isStarted } from "../lib/utils.js";
-import { catLabel, EXPANSIONS } from "../lib/offers.js";
+import { catLabel, EXPANSIONS, isStrongProductMatch } from "../lib/offers.js";
 import { apiSearch } from "../lib/api.js";
 import { SearchIc } from "./Icons.jsx";
 import { Spinner, ErrBox } from "./Shared.jsx";
@@ -16,6 +16,7 @@ export function SearchTab({ cfg, added, addItem, searchHistory = [], onSearchHis
   const [sort, setSort] = useState("unitPrice");
   const [searchGroupBy, setSearchGroupBy] = useState("vendor");
   const [searchOnlyStarted, setSearchOnlyStarted] = useState(false);
+  const [searchPrecise, setSearchPrecise] = useState(false);
   const requestRef = useRef(0);
   const qRef = useRef(q);
 
@@ -74,7 +75,8 @@ export function SearchTab({ cfg, added, addItem, searchHistory = [], onSearchHis
   }, [cfg.loyalty, cfg.myLoyalty]);
 
   const fsBase = useMemo(() => srt(filtOffers(sRes)), [filtOffers, sRes, srt]);
-  const fs = useMemo(() => searchOnlyStarted ? fsBase.filter(o => isStarted(o)) : fsBase, [fsBase, searchOnlyStarted]);
+  const fsPreciseBase = useMemo(() => searchPrecise ? fsBase.filter(o => isStrongProductMatch(o, q)) : fsBase, [fsBase, q, searchPrecise]);
+  const fs = useMemo(() => searchOnlyStarted ? fsPreciseBase.filter(o => isStarted(o)) : fsPreciseBase, [fsPreciseBase, searchOnlyStarted]);
   const searchVendorCount = useMemo(() => new Set(fs.map(o => o.retailerName)).size, [fs]);
   const searchUpcomingCount = useMemo(() => fs.filter(o => !isStarted(o)).length, [fs]);
   const searchGrouped = useMemo(() => {
@@ -107,6 +109,7 @@ export function SearchTab({ cfg, added, addItem, searchHistory = [], onSearchHis
           <span style={{ fontSize: "10px", color: "#bbb", fontFamily: "'JetBrains Mono',monospace", marginLeft: "auto" }}>{fs.length}</span>
           <div style={{ width: "100%", display: "flex", gap: "4px", flexWrap: "wrap" }}>
             {[{ k: "vendor", l: "Nach Händler" }, { k: "category", l: "Nach Kategorie" }, { k: "none", l: "Liste" }].map(g => <button type="button" key={g.k} onClick={() => setSearchGroupBy(g.k)} style={{ padding: "4px 9px", borderRadius: "14px", fontSize: "10px", fontWeight: 600, border: searchGroupBy === g.k ? "2px solid #1a1a1a" : "1.5px solid #ddd", background: searchGroupBy === g.k ? "#1a1a1a" : "#fff", color: searchGroupBy === g.k ? "#fff" : "#888", cursor: "pointer", fontFamily: "inherit" }}>{g.l}</button>)}
+            <button type="button" onClick={() => setSearchPrecise(v => !v)} style={{ padding: "4px 9px", borderRadius: "14px", fontSize: "10px", fontWeight: 600, border: searchPrecise ? "2px solid #1a1a1a" : "1.5px solid #ddd", background: searchPrecise ? "#1a1a1a" : "#fff", color: searchPrecise ? "#fff" : "#888", cursor: "pointer", fontFamily: "inherit" }}>Genaue Treffer</button>
             <button type="button" onClick={() => setSearchOnlyStarted(v => !v)} style={{ padding: "4px 9px", borderRadius: "14px", fontSize: "10px", fontWeight: 600, border: searchOnlyStarted ? "2px solid #1a1a1a" : "1.5px solid #ddd", background: searchOnlyStarted ? "#1a1a1a" : "#fff", color: searchOnlyStarted ? "#fff" : "#888", cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}>Nur gestartet</button>
           </div>
           <span style={{ fontSize: "10px", color: "#bbb", fontFamily: "'JetBrains Mono',monospace", width: "100%" }}>
@@ -123,7 +126,7 @@ export function SearchTab({ cfg, added, addItem, searchHistory = [], onSearchHis
         {!loading && !sDone && !err && <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}><div style={{ fontSize: "32px", marginBottom: "8px" }}>🔍</div><div style={{ fontSize: "13px", fontWeight: 500 }}>Produkt suchen</div><div style={{ fontSize: "11px", marginTop: "3px", fontFamily: "'JetBrains Mono',monospace" }}>"milch OR hafermilch" · kell* · "irische butter"</div></div>}
         {err && <ErrBox msg={err} onRetry={() => doSearch(null, q, { force: true })} />}
         {sDone && !loading && sRes.length === 0 && !err && <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}><div style={{ fontSize: "32px", marginBottom: "8px" }}>😕</div><div style={{ fontSize: "13px" }}>Keine Treffer für „{q}"</div></div>}
-        {sDone && !loading && sRes.length > 0 && fs.length === 0 && !err && <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}><div style={{ fontSize: "32px", marginBottom: "8px" }}>⏳</div><div style={{ fontSize: "13px" }}>Nur kommende Angebote gefunden</div><div style={{ fontSize: "11px", marginTop: "3px", fontFamily: "'JetBrains Mono',monospace" }}>Filter „Nur gestartet" deaktivieren</div></div>}
+        {sDone && !loading && sRes.length > 0 && fs.length === 0 && !err && <div style={{ textAlign: "center", padding: "48px 0", color: "#bbb" }}><div style={{ fontSize: "32px", marginBottom: "8px" }}>{searchPrecise ? "🎯" : "⏳"}</div><div style={{ fontSize: "13px" }}>{searchPrecise ? "Keine genauen Treffer" : "Nur kommende Angebote gefunden"}</div><div style={{ fontSize: "11px", marginTop: "3px", fontFamily: "'JetBrains Mono',monospace" }}>{searchPrecise ? "Filter „Genaue Treffer” deaktivieren" : "Filter „Nur gestartet” deaktivieren"}</div></div>}
 {searchGroupBy === "none" && fs.map(o => <div key={o.id} style={{ marginBottom: "6px", animation: "fadeIn 0.2s ease" }}><Card o={o} added={added} addItem={addItem} myLoyalty={cfg.myLoyalty} /></div>)}
         {searchGroupBy !== "none" && searchGrouped.map(g => { const vendorMode = searchGroupBy === "vendor"; const rc = vendorMode ? getRetColor(g.offers[0]?.retailerSlug, g.name) : "#1a1a1a"; const lt = isLightColor(rc); return <div key={g.name} style={{ marginBottom: "10px", animation: "fadeIn 0.2s ease" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px", background: vendorMode ? rc : "#fff", border: vendorMode ? "none" : "1px solid #eee", borderRadius: "9px 9px 4px 4px", color: vendorMode ? (lt ? "#1a1a1a" : "#fff") : "#1a1a1a" }}>

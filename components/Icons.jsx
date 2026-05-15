@@ -8,6 +8,7 @@ export const TrashIc=()=><Ic d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6
 export const CheckIc=()=><Ic d="M20 6L9 17l-5-5" s={15} w={3}/>;
 export const ChevD=({open})=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{transition:"transform 0.2s",transform:open?"rotate(180deg)":"none"}}><path d="M6 9l6 6 6-6"/></svg>;
 export const StarIc=()=><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14l-5-4.87 6.91-1.01z"/></svg>;
+export const StarNavIc=()=><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14l-5-4.87 6.91-1.01z"/></svg>;
 export const ZapIc=()=><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>;
 export const RefIc=()=><Ic d="M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" s={14} w={2}/>;
 export const BookIc=()=><Ic d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 004 17V5a2 2 0 012-2h14v14H6.5" s={14} w={2}/>;
