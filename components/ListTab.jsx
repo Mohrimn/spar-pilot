@@ -156,7 +156,9 @@ function ShoppingPlan({ plan }) {
   );
 }
 
-export function ListTab({ list, storeLocations = {}, onRemove, onToggleCheck, onUpdateQty, onClearChecked }) {
+export function ListTab({ list: allItems, storeLocations = {}, onRemove, onToggleCheck, onUpdateQty, onClearChecked }) {
+  const list = useMemo(() => allItems.filter(i => i.offer), [allItems]);
+  const ingredients = allItems.filter(i => !i.offer && i.ingredientId);
   const [showPlan, setShowPlan] = useState(false);
   const groupedList = useMemo(() => {
     const grouped = {};
@@ -175,9 +177,18 @@ export function ListTab({ list, storeLocations = {}, onRemove, onToggleCheck, on
 
   return (
     <div style={{ padding: "12px 18px" }}>
-      {list.length === 0 ? <div style={{ textAlign: "center", padding: "52px 0", color: "#bbb" }}><div style={{ fontSize: "32px", marginBottom: "8px" }}>📋</div><div style={{ fontSize: "13px", fontWeight: 500 }}>Einkaufsliste ist leer</div></div> : <>
+      {ingredients.length > 0 && <section style={{background:"#fff",padding:12,borderRadius:12,marginBottom:12}}>
+        <h3 style={{marginTop:0}}>Rezeptzutaten</h3>
+        <p style={{fontSize:12}}>Preise unbekannt, nicht in der Angebotssumme enthalten. Bereits hinzugefügte Angebotspackungen mit diesen Mengen abgleichen.</p>
+        {ingredients.map(item => <div key={item.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0"}}>
+          <label style={{flex:1,textDecoration:item.ck ? "line-through" : "none"}}><input type="checkbox" checked={item.ck} onChange={() => onToggleCheck(item.id)}/> {item.amount} {item.unit} {item.name}</label>
+          <button aria-label={`${item.name} entfernen`} onClick={() => onRemove(item.id)}>Entfernen</button>
+        </div>)}
+        <button onClick={onClearChecked}>Erledigte Artikel entfernen</button>
+      </section>}
+      {list.length === 0 ? <div style={{ textAlign: "center", padding: "52px 0", color: "#bbb" }}><div style={{ fontSize: "32px", marginBottom: "8px" }}>📋</div><div style={{ fontSize: "13px", fontWeight: 500 }}>Keine Angebotspackungen auf der Liste</div></div> : <>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 13px", background: "#1a1a1a", borderRadius: "11px", color: "#fff", marginBottom: "12px" }}>
-          <div><div style={{ fontSize: "9px", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" }}>Gesamt</div><div style={{ fontSize: "22px", fontWeight: 800, fontFamily: "'JetBrains Mono',monospace" }}>{tot.toFixed(2)}€</div></div>
+          <div><div style={{ fontSize: "9px", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" }}>Angebotssumme</div><div style={{ fontSize: "22px", fontWeight: 800, fontFamily: "'JetBrains Mono',monospace" }}>{tot.toFixed(2)}€</div></div>
           <div style={{ textAlign: "right" }}><div style={{ fontSize: "10px", color: "#cccbcb" }}>{list.length} Artikel · {Object.keys(groupedList).length} Läden</div>{ckN > 0 && <button onClick={onClearChecked} style={{ background: "#dc2626", color: "#fff", border: "none", borderRadius: "6px", padding: "3px 8px", fontSize: "10px", fontWeight: 700, cursor: "pointer", marginTop: "3px", fontFamily: "inherit" }}>{ckN} erledigt ✕</button>}</div>
         </div>
         <button

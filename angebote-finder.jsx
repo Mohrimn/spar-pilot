@@ -13,7 +13,12 @@ import { StammTab } from "./components/StammTab.jsx";
 import { GasPricesTab } from "./components/GasPricesTab.jsx";
 import { SettingsTab } from "./components/SettingsTab.jsx";
 
+import { RecipesTab } from "./components/RecipesTab.jsx";
+import { mergeRecipeItems, berlinDate } from "./lib/recipes.js";
+
 export default function SparPilot() {
+  const [recipePrefs, setRecipePrefs] = useState({ diet: "all", servings: 2, minutes: 45, retailer: "", mealPrep: false, excluded: [] });
+  const [offerContext, setOfferContext] = useState(null);
   const [tab, setTab] = useState("angebote");
   const [list, setList] = useState([]);
   const [cfg, setCfg] = useState({
@@ -65,9 +70,12 @@ export default function SparPilot() {
       if (h.length) setSearchHistory(h);
       if (st.length) setStaples(st);
       if (pm && typeof pm === "object") setPriceMemory(pm);
+      const rp = await sLoad("sp5-recipePrefs", null);
+      if (rp && typeof rp === "object") setRecipePrefs(p => ({ ...p, ...rp, excluded: Array.isArray(rp.excluded) ? rp.excluded : [] }));
       setRdy(true);
     })();
   }, []);
+  useEffect(() => { if (rdy) sSave("sp5-recipePrefs", recipePrefs); }, [recipePrefs, rdy]);
   useEffect(() => { if (rdy) sSave("sp5-list", list); }, [list, rdy]);
   useEffect(() => {
     if (!rdy) return;
@@ -94,6 +102,7 @@ export default function SparPilot() {
       ]);
       if (browseRequestRef.current !== requestId) return;
       setPubGroups(groups);
+      setOfferContext({ zip, day: berlinDate() });
       setLeafletFlights(flights);
       if (Object.keys(flights).length > 0) {
         const storeRequestId = storeRequestRef.current + 1;
@@ -114,6 +123,15 @@ export default function SparPilot() {
       if (browseRequestRef.current === requestId) setBLoad(false);
     }
   }, [cfg.showAllIndustries, cfg.zip, getCoords]);
+
+  useEffect(() => {
+    if (tab !== "recipes" || !rdy) return;
+    const refresh = () => { if (offerContext?.zip !== cfg.zip || offerContext?.day !== berlinDate()) doLoadBrowse({ force: true }); };
+    refresh();
+    window.addEventListener("focus", refresh);
+    const timer = window.setInterval(refresh, 60000);
+    return () => { window.removeEventListener("focus", refresh); window.clearInterval(timer); };
+  }, [tab, rdy, cfg.zip, offerContext, doLoadBrowse]);
 
   const addToHistory = (term) => {
     if (term === "__clear__") { setSearchHistory([]); return; }
@@ -163,7 +181,7 @@ export default function SparPilot() {
   const updQ = (id, d) => setList(p => p.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + d) } : i));
   const clrCk = () => setList(p => p.filter(i => !i.ck));
 
-  const tot = useMemo(() => list.reduce((s, i) => s + i.offer.price * i.qty, 0), [list]);
+  const tot = useMemo(() => list.reduce((s, i) => s + (i.offer ? i.offer.price * i.qty : 0), 0), [list]);
 
   return (
     <div style={{ fontFamily: "'DM Sans','Helvetica Neue',sans-serif", background: "#f5f4f0", minHeight: "100vh", maxWidth: "480px", margin: "0 auto", display: "flex", flexDirection: "column", color: "#1a1a1a", position: "relative" }}>
@@ -174,12 +192,13 @@ export default function SparPilot() {
             <span style={{ fontSize: "18px", fontWeight: 800, letterSpacing: "-0.5px" }}>Spar·Pilot</span>
             <span style={{ fontSize: "10px", color: "#666", fontFamily: "'JetBrains Mono',monospace" }}>{cfg.zip}</span>
           </div>
-          {list.length > 0 && <div style={{ fontSize: "10px", color: "#10b981", fontFamily: "'JetBrains Mono',monospace", display: "flex", alignItems: "center", gap: "3px", background: "#10b98115", padding: "3px 8px", borderRadius: "6px" }}><ZapIc />{list.length} · {tot.toFixed(2)}€</div>}
+          {list.length > 0 && <div style={{ fontSize: "10px", color: "#10b981", fontFamily: "'JetBrains Mono',monospace", display: "flex", alignItems: "center", gap: "3px", background: "#10b98115", padding: "3px 8px", borderRadius: "6px" }}><ZapIc />{list.length} · {tot.toFixed(2)}€{list.some(i => !i.offer) ? " + offene Preise" : ""}</div>}
         </div>
       </div>
 
       <div ref={mainScrollRef} style={{ flex: 1, overflowY: "auto", paddingBottom: "66px" }}>
         {tab === "angebote" && <AngeboteTab pubGroups={pubGroups} leafletFlights={leafletFlights} storeLocations={storeLocations} cfg={cfg} added={added} addItem={addItem} onLoadBrowse={doLoadBrowse} bLoad={bLoad} bErr={bErr} onOpenProspekt={openProspekt} onGoSearch={goSearchWith} />}
+        {tab === "recipes" && <RecipesTab pubGroups={offerContext?.zip === cfg.zip && offerContext?.day === berlinDate() ? pubGroups : []} cfg={cfg} prefs={recipePrefs} onPreferences={patch => setRecipePrefs(p => ({ ...p, ...patch }))} onAddIngredients={items => setList(p => mergeRecipeItems(p, items))} onAddOffer={addItem} added={added} bLoad={bLoad} bErr={bErr} onRefresh={() => doLoadBrowse({ force: true })} />}
         {tab === "search" && <SearchTab cfg={cfg} added={added} addItem={addItem} searchHistory={searchHistory} onSearchHistoryUpdate={addToHistory} initialQ={searchPreFill} onConsumeInitialQ={() => setSearchPreFill(null)} />}
         {tab === "staples" && <StammTab cfg={cfg} staples={staples} priceMemory={priceMemory} added={added} addItem={addItem} onAddStaple={addStaple} onRemoveStaple={removeStaple} onRememberStapleOffers={rememberStapleOffers} onGoSearch={goSearchWith} />}
         {tab === "fuel" && <GasPricesTab cfg={cfg} active={tab === "fuel"} onUpdateCfg={patch => setCfg(s => ({ ...s, ...patch }))} getCoords={getCoords} />}
@@ -192,7 +211,7 @@ export default function SparPilot() {
 
       {/* NAV */}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: "480px", display: "flex", background: "#fff", borderTop: "1.5px solid #eee", zIndex: 100, padding: "0 0 env(safe-area-inset-bottom)" }}>
-        {[{ k: "angebote", ic: <TagIc />, l: "Angebote" }, { k: "search", ic: <SearchIc />, l: "Suche" }, { k: "staples", ic: <StarNavIc />, l: "Stamm", b: staples.length }, { k: "list", ic: <ListIc />, l: "Liste", b: list.length }, { k: "fuel", ic: <FuelIc />, l: "Tanken" }, { k: "settings", ic: <GearIc />, l: "Mehr" }].map(t => <button key={t.k} onClick={() => setTab(t.k)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", padding: "8px 0 6px", border: "none", background: "transparent", color: tab === t.k ? "#1a1a1a" : "#ccc", cursor: "pointer", position: "relative", fontFamily: "inherit", transition: "color 0.1s" }}>
+        {[{ k: "angebote", ic: <TagIc />, l: "Angebote" }, { k: "search", ic: <SearchIc />, l: "Suche" }, { k: "staples", ic: <StarNavIc />, l: "Stamm", b: staples.length }, { k: "list", ic: <ListIc />, l: "Liste", b: list.length }, { k: "recipes", ic: <span aria-hidden="true">♨</span>, l: "Kochen" }, { k: "fuel", ic: <FuelIc />, l: "Tanken" }, { k: "settings", ic: <GearIc />, l: "Mehr" }].map(t => <button key={t.k} onClick={() => setTab(t.k)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", padding: "8px 0 6px", border: "none", background: "transparent", color: tab === t.k ? "#1a1a1a" : "#ccc", cursor: "pointer", position: "relative", fontFamily: "inherit", transition: "color 0.1s" }}>
           {t.b > 0 && <span style={{ position: "absolute", top: "2px", right: "calc(50% - 15px)", background: "#10b981", color: "#fff", fontSize: "8px", fontWeight: 800, width: "14px", height: "14px", borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center" }}>{t.b}</span>}
           {t.ic}<span style={{ fontSize: "9px", fontWeight: tab === t.k ? 800 : 500 }}>{t.l}</span>
         </button>)}
