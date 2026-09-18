@@ -18,6 +18,37 @@ This project is unofficial and is not affiliated with, endorsed by, or sponsored
 The license of this repository applies only to the source code written for this project. It does not grant any rights to third party APIs, data, trademarks, logos, endpoints, or services.
 Users are responsible for ensuring that their use of this project complies with applicable laws and the terms of any third party services they interact with.
 
+## Cooking from offers
+
+The **Kochen** tab matches 40 curated vegetarian and vegan recipes to offers for
+an explicit shopping date (Europe/Berlin). Preferences for diet, portions, cooking
+time, meal prep, excluded ingredients and retailer are saved locally.
+
+Only offers with known validity and a positive price are matched. Loyalty offers
+require a card selected in Settings. Ingredient names deliberately match narrowly;
+ambiguous variants and prepared foods are not treated as equivalent ingredients.
+The feed is a set of advertised offers, not proof that every product is discounted:
+a discount is counted only when the supplied old price exceeds the current price.
+
+Recipe details show quantities, instructions, linked offers and additional ingredients.
+Mark ingredients already available before adding the rest to the list. Recipe
+requirements aggregate by ingredient and unit, separately from priced offer packs.
+Adding a pack does not automatically satisfy an ingredient requirement: check the
+pack size and mark the corresponding requirement as available or completed.
+Unknown prices are excluded from the labelled offer subtotal. Pack counts are shown
+only for an unambiguous pack-size description; no whole-meal price is invented.
+
+Offers refresh on recipe-tab entry after a date/postcode change, on window focus
+following such a change, and through the refresh button. API cache entries expire
+after 15 minutes when next requested.
+
+This initial catalogue has no meat recipes, nutrition calculations, protein target,
+AI generation or full weekly planner. Ingredient exclusions are not an allergen
+certification. Recipe data lives in `lib/recipes.js` and `lib/recipeCatalogue.js` and the UI in
+`components/RecipesTab.jsx`.
+
+Run `npm test` for matching, date, quantity and shopping-list regression tests.
+
 ## Getting started
 
 ```bash
@@ -79,3 +110,8 @@ src/
 - React 19 — UI
 - Vite 7 — bundler / dev server
 - No CSS framework — inline styles throughout
+
+The local collection includes pasta, curries, soups, salads, bowls, skillet meals
+and oven dishes. No recipe service or paid subscription is required. Canned
+legumes match only when the offer description confirms a cooked/canned product;
+dry legumes are not interchangeable. Recipe amounts use drained weight.
