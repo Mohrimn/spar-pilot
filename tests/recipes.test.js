@@ -46,3 +46,40 @@ test('shopping list aggregates ingredients without mutating existing list or off
   const checked = mergeRecipeItems([{...original[0],ck:true}],[{id:'c',ingredientId:'tomato',amount:300,unit:'g',ck:false}]);
   assert.equal(checked.length,2);
 });
+
+test('expanded catalogue has complete, consistent and scalable recipe data', async () => {
+  const { RECIPES, INGREDIENTS } = await import('../lib/recipes.js');
+  assert.equal(RECIPES.length,40);
+  assert.equal(new Set(RECIPES.map(r=>r.id)).size,RECIPES.length);
+  const animalIngredients = new Set(['quark','feta','mozzarella','creamCheese']);
+  for (const recipe of RECIPES) {
+    assert.ok(recipe.name && recipe.minutes > 0 && recipe.servings === 2);
+    assert.ok(recipe.steps.length >= 3 && recipe.steps.every(s=>typeof s === 'string' && s.length > 10));
+    assert.equal(new Set(recipe.ingredients.map(i=>i.id)).size,recipe.ingredients.length);
+    for (const ingredient of recipe.ingredients) {
+      assert.ok(INGREDIENTS[ingredient.id],`${recipe.id}: unknown ingredient ${ingredient.id}`);
+      assert.ok(ingredient.amount > 0 && ['g','ml'].includes(ingredient.unit));
+      if (recipe.diet === 'vegan') assert.ok(!animalIngredients.has(ingredient.id),recipe.id);
+    }
+    const first = recipe.ingredients[0];
+    const name = { chickpeas:'Kichererbsen',whiteBeans:'Weiße Bohnen',kidney:'Kidneybohnen' }[first.id] || INGREDIENTS[first.id].name;
+    const result = recommendRecipes([offer(name,{description:'gegart, Dose'})],{...prefs,servings:3},day).find(r=>r.id===recipe.id);
+    assert.ok(result,`Recipe cannot match its main ingredient: ${recipe.id}`);
+    assert.equal(result.ingredients[0].amount,first.amount*1.5);
+  }
+});
+test('canned ingredient matching rejects dry or ambiguous legumes and unknown drained weights', async () => {
+  const { matchesIngredient } = await import('../lib/recipes.js');
+  for (const [id,name] of [['chickpeas','Kichererbsen'],['kidney','Kidneybohnen'],['whiteBeans','Weiße Bohnen']]) {
+    assert.equal(matchesIngredient(offer(name,{description:'500 g getrocknet'}),id),false);
+    assert.equal(matchesIngredient(offer(name,{description:'500 g'}),id),false);
+    assert.equal(matchesIngredient(offer(name,{description:'400 g Dose'}),id),true);
+  }
+  const r = recommendRecipes([offer('Kichererbsen',{description:'400 g Dose'})],prefs,day).find(r=>r.id==='chickpea-curry');
+  assert.ok(r);
+  assert.equal(r.ingredients.find(i=>i.id==='chickpeas').checkout,null);
+});
+test('new ingredient mappings reject sauces, sweet drinks and prepared salads', async () => {
+  const { matchesIngredient } = await import('../lib/recipes.js');
+  for (const [id,name] of [['coconut','Kokosdrink'],['pepper','Paprikapulver'],['mushroom','Champignoncremesuppe'],['cucumber','Gurkensalat'],['soySauce','Sojadrink'],['pumpkin','Kürbissuppe']]) assert.equal(matchesIngredient(offer(name),id),false);
+});

@@ -20,7 +20,7 @@ Users are responsible for ensuring that their use of this project complies with 
 
 ## Cooking from offers
 
-The **Kochen** tab matches eight curated vegetarian and vegan recipes to offers for
+The **Kochen** tab matches 40 curated vegetarian and vegan recipes to offers for
 an explicit shopping date (Europe/Berlin). Preferences for diet, portions, cooking
 time, meal prep, excluded ingredients and retailer are saved locally.
 
@@ -44,7 +44,7 @@ after 15 minutes when next requested.
 
 This initial catalogue has no meat recipes, nutrition calculations, protein target,
 AI generation or full weekly planner. Ingredient exclusions are not an allergen
-certification. Recipe data lives in `lib/recipes.js` and the UI in
+certification. Recipe data lives in `lib/recipes.js` and `lib/recipeCatalogue.js` and the UI in
 `components/RecipesTab.jsx`.
 
 Run `npm test` for matching, date, quantity and shopping-list regression tests.
@@ -110,3 +110,8 @@ src/
 - React 19 — UI
 - Vite 7 — bundler / dev server
 - No CSS framework — inline styles throughout
+
+The local collection includes pasta, curries, soups, salads, bowls, skillet meals
+and oven dishes. No recipe service or paid subscription is required. Canned
+legumes match only when the offer description confirms a cooked/canned product;
+dry legumes are not interchangeable. Recipe amounts use drained weight.

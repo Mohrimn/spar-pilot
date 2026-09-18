@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { INGREDIENTS, berlinDate, recommendRecipes, recipeShoppingItems } from '../lib/recipes.js';
+import { INGREDIENTS, RECIPES, berlinDate, recommendRecipes, recipeShoppingItems } from '../lib/recipes.js';
 import { isMyLoyalty } from '../lib/constants.js';
 
 const field = { padding: 9, border: '1px solid #ddd', borderRadius: 8, background: '#fff', font: 'inherit', width: '100%', boxSizing: 'border-box' };
@@ -26,7 +26,7 @@ export function RecipesTab({ pubGroups, cfg, prefs, onPreferences, onAddIngredie
     <details><summary style={{cursor:'pointer'}}>Zutaten ausschließen ({prefs.excluded.length})</summary><div style={{display:'flex',flexWrap:'wrap',gap:10,padding:'12px 0'}}>{Object.entries(INGREDIENTS).map(([id,i]) => <label key={id}><input type="checkbox" checked={prefs.excluded.includes(id)} onChange={e => patch({excluded:e.target.checked ? [...prefs.excluded,id] : prefs.excluded.filter(x=>x!==id)})}/>{i.name}</label>)}</div><p>Filter beziehen sich auf Rezeptzutaten. Produktetiketten auf Allergene prüfen.</p></details>
     <button style={{...button,margin:'12px 0'}} disabled={bLoad} onClick={onRefresh}>{bLoad ? 'Angebote werden geladen …' : 'Angebote aktualisieren'}</button>
     {bErr && <p role="alert">Angebote konnten nicht geladen werden: {bErr}</p>}
-    <p style={{fontSize:11,color:'#777'}}>Startkollektion: 8 vegetarische und vegane Rezepte. Preise gelten für Packungen. Ohne Vergleichspreis wird keine Ersparnis behauptet. Salz, Pfeffer und Wasser nach Bedarf.</p>
+    <p style={{fontSize:11,color:'#777'}}>Lokale Sammlung: {RECIPES.length} vegetarische und vegane Rezepte. Preise gelten für Packungen. Ohne Vergleichspreis wird keine Ersparnis behauptet. Salz, Pfeffer und Wasser nach Bedarf. Mengen für Konserven beziehen sich auf das Abtropfgewicht.</p>
     <p role="status" style={{color:'#047857'}}>{notice}</p>
     {!bLoad && !bErr && recipes.length === 0 && <p>Keine passenden Rezepte mit gültigen Angeboten gefunden. Ändere Filter oder Einkaufstag, oder lade Angebote neu.</p>}
     {!bLoad && !bErr && recipes.map(r => <article key={r.id} style={{background:'#fff',border:'1px solid #e5e5e0',borderRadius:12,padding:14,marginBottom:12}}>
